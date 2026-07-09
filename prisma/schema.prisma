@@ -1,0 +1,197 @@
+// Prisma schema — 勉強スケジュール管理アプリ
+// 詳細は SPEC.md / CLAUDE.md を参照。全テーブルに userId を持たせ、userId でスコープする。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id @default(cuid())
+  email String @unique
+  name  String?
+
+  subjects     Subject[]
+  weeklyPlans  WeeklyPlan[]
+  locations    Location[]
+  fixedEvents  FixedEvent[]
+  settings     Settings?
+  travelCaches TravelCache[]
+  scheduleBlocks ScheduleBlock[]
+  dayStates   DayState[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SubjectTimeSlot {
+  morning
+  anytime
+}
+
+model Subject {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  weeklyQuotaMin Int
+  timeSlot       SubjectTimeSlot @default(anytime)
+
+  scheduleBlocks ScheduleBlock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WeeklyPlan {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStartDate DateTime
+  // 優先順位: subjectId の配列 (JSON)
+  priorities    Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@unique([userId, weekStartDate])
+}
+
+enum LocationKind {
+  library
+  cafe
+  other
+}
+
+model Location {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  address         String
+  placeId         String?
+  kind            LocationKind
+  maxStayMin      Int?
+  openingHoursJson Json?
+  manualHoursJson  Json?
+
+  fixedEvents    FixedEvent[]
+  scheduleBlocks ScheduleBlock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum FixedEventKind {
+  school
+  work
+  other
+}
+
+model FixedEvent {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  startsAt   DateTime
+  endsAt     DateTime
+  locationId String?
+  location   Location?      @relation(fields: [locationId], references: [id])
+  kind       FixedEventKind
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Settings {
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  homeAddress  String
+  wakeWeekday  String
+  wakeWeekend  String
+  morningEnd   String   @default("12:00")
+  outsideEnd   String   @default("21:00")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TravelCache {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "home" または placeId
+  fromKey   String
+  toKey     String
+  minutes   Int
+  fetchedAt DateTime @default(now())
+
+  @@index([userId])
+  @@unique([userId, fromKey, toKey])
+}
+
+enum ScheduleBlockType {
+  study
+  move
+  break
+  lunch
+  event
+}
+
+enum ScheduleBlockStatus {
+  planned
+  done
+  partial
+  skipped
+}
+
+model ScheduleBlock {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  type        ScheduleBlockType
+  startsAt    DateTime
+  endsAt      DateTime
+  subjectId   String?
+  subject     Subject?            @relation(fields: [subjectId], references: [id])
+  locationId  String?
+  location    Location?           @relation(fields: [locationId], references: [id])
+  status      ScheduleBlockStatus @default(planned)
+  actualMin   Int?
+  gcalEventId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model DayState {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  revealedAt  DateTime?
+  rerollUsed  Boolean   @default(false)
+  gaveUp      Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@unique([userId, date])
+}
