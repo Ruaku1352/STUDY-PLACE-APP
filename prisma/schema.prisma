@@ -2,8 +2,9 @@
 // 詳細は SPEC.md / CLAUDE.md を参照。全テーブルに userId を持たせ、userId でスコープする。
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
