@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { BottomNav } from "./BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -52,15 +52,7 @@ export default async function RootLayout({
           </div>
         </header>
         <main className="app-main">{children}</main>
-        {session?.user && (
-          <nav className="app-nav">
-            {NAV_ITEMS.map((item) => (
-              <Link key={item.href} href={item.href} className="app-nav-link">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
+        {session?.user && <BottomNav items={NAV_ITEMS} />}
       </body>
     </html>
   );
