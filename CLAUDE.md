@@ -53,4 +53,4 @@
 - [x] Phase 2: Google Maps/Places 連携＋キャッシュ
 - [x] Phase 3: タイムラインUI・管理画面
 - [x] Phase 4: Googleログイン＋Calendar連携
-- [ ] Phase 5: 進捗グラフ・実績・デプロイ
+- [x] Phase 5: 進捗グラフ・実績・デプロイ（ハッカソン前成果物 完成）
