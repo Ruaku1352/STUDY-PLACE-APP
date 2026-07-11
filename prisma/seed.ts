@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@prisma/client";
 import { fetchOpeningHours, resolvePlaceId } from "@/lib/google/places";
 import { prisma } from "@/lib/prisma";
 

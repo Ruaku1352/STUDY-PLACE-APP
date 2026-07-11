@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { fetchOpeningHours, resolvePlaceId, type PlacesWeeklyHours } from "@/lib/google/places";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 
 const WEEKDAY_KEYS = [0, 1, 2, 3, 4, 5, 6] as const;
 

@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import type { OpeningHoursStore, TravelCacheStore } from "./cache";
 import type { PlacesWeeklyHours } from "./places";
 
