@@ -1,0 +1,44 @@
+import { todayDateString, dateStringToDate } from "@/lib/date";
+import { getCurrentUserId } from "@/lib/currentUser";
+import { prisma } from "@/lib/prisma";
+import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
+import { generatePlan } from "./actions";
+import { PriorityList } from "./PriorityList";
+
+function currentWeekStart(): string {
+  const today = todayDateString();
+  return addDaysToDate(today, -weekdayIndex(today));
+}
+
+export default async function WeeklyPlanPage() {
+  const userId = await getCurrentUserId();
+
+  const weekStartDate = currentWeekStart();
+  const [subjects, weeklyPlan] = await Promise.all([
+    prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
+    prisma.weeklyPlan.findUnique({
+      where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
+    }),
+  ]);
+
+  const savedOrder = Array.isArray(weeklyPlan?.priorities) ? (weeklyPlan.priorities as string[]) : [];
+  const byId = new Map(subjects.map((s) => [s.id, s]));
+  const ordered = [
+    ...savedOrder.map((id) => byId.get(id)).filter((s): s is (typeof subjects)[number] => Boolean(s)),
+    ...subjects.filter((s) => !savedOrder.includes(s.id)),
+  ];
+
+  return (
+    <div>
+      <h1>週はじめ優先順位設定</h1>
+      <p className="muted" style={{ marginBottom: "1rem" }}>
+        対象週: {weekStartDate} 〜 {addDaysToDate(weekStartDate, 6)}
+      </p>
+      <PriorityList
+        weekStartDate={weekStartDate}
+        initialSubjects={ordered.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin }))}
+        generatePlanAction={generatePlan}
+      />
+    </div>
+  );
+}

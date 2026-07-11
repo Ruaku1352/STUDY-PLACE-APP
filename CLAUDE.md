@@ -45,7 +45,7 @@
 ## 進行状況（フェーズ完了時にここを更新すること）
 - [x] Phase 0: プロジェクト雛形
 - [x] Phase 1: スケジューリングロジック＋テスト
-- [ ] Phase 2: Google Maps/Places 連携＋キャッシュ
-- [ ] Phase 3: タイムラインUI・管理画面
-- [ ] Phase 4: Googleログイン＋Calendar連携
+- [x] Phase 2: Google Maps/Places 連携＋キャッシュ
+- [x] Phase 3: タイムラインUI・管理画面
+- [x] Phase 4: Googleログイン＋Calendar連携
 - [ ] Phase 5: 進捗グラフ・実績・デプロイ

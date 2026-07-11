@@ -198,4 +198,29 @@ describe("generateWeek", () => {
     );
     expect(gapBlocks.length).toBe(0);
   });
+
+  it("1日の可処分時間が大きくても、週の後半の日にstudyブロックが0件にならない", () => {
+    // 実際に発生したバグの再現データ: 週の合計ノルマ(700分)に対し1日の可処分時間が
+    // 非常に大きい（起床8:00〜終了21:00、移動一律15分、営業9:00-21:00）ため、
+    // 均等配分をしないと週の前半2日だけでノルマを使い切ってしまっていた。
+    const subjects: SchedulerSubject[] = [
+      { id: "eigo", name: "EIGO", weeklyQuotaMin: 300, priority: 0, timeSlot: "anytime" },
+      { id: "math", name: "数学", weeklyQuotaMin: 100, priority: 1, timeSlot: "morning" },
+      { id: "joho", name: "情報理論", weeklyQuotaMin: 300, priority: 2, timeSlot: "anytime" },
+    ];
+    const { blocks } = generateWeek({
+      weekStartDate: WEEK_START,
+      subjects,
+      locations: [library, libraryAlt, cafe],
+      fixedEvents: [],
+      settings: baseSettings,
+      travelTimeFn: flatTravelTimeFn,
+    });
+
+    for (let d = 0; d < 7; d++) {
+      const date = addDaysToDate(WEEK_START, d);
+      const studyBlocksThatDay = blocks.filter((b) => b.date === date && b.type === "study");
+      expect(studyBlocksThatDay.length, `${date} にstudyブロックが1件もない`).toBeGreaterThan(0);
+    }
+  });
 });

@@ -1,0 +1,54 @@
+import { notFound } from "next/navigation";
+import { getCurrentUserId } from "@/lib/currentUser";
+import { prisma } from "@/lib/prisma";
+import { deleteSubject, updateSubject } from "../../actions";
+
+export default async function EditSubjectPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const userId = await getCurrentUserId();
+  const subject = await prisma.subject.findFirst({ where: { id, userId } });
+  if (!subject) notFound();
+
+  const updateWithId = updateSubject.bind(null, subject.id);
+  const deleteWithId = deleteSubject.bind(null, subject.id);
+
+  return (
+    <div>
+      <h1>科目を編集</h1>
+      <form action={updateWithId} className="card stack">
+        <div className="field">
+          <label htmlFor="name">科目名</label>
+          <input id="name" name="name" required defaultValue={subject.name} />
+        </div>
+        <div className="field">
+          <label htmlFor="weeklyQuotaMin">週間ノルマ（分）</label>
+          <input
+            id="weeklyQuotaMin"
+            name="weeklyQuotaMin"
+            type="number"
+            min={1}
+            step={1}
+            required
+            defaultValue={subject.weeklyQuotaMin}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="timeSlot">時間帯タグ</label>
+          <select id="timeSlot" name="timeSlot" defaultValue={subject.timeSlot}>
+            <option value="anytime">いつでも</option>
+            <option value="morning">午前中心（数学・アルゴリズム系など）</option>
+          </select>
+        </div>
+        <button type="submit" className="button-primary button-block">
+          保存
+        </button>
+      </form>
+
+      <form action={deleteWithId} style={{ marginTop: "0.75rem" }}>
+        <button type="submit" className="button-danger button-block">
+          削除
+        </button>
+      </form>
+    </div>
+  );
+}

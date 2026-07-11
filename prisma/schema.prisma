@@ -16,6 +16,11 @@ model User {
   email String @unique
   name  String?
 
+  /** Googleカレンダー連携用（Auth.jsのJWTセッションではなくDBに永続化し、サーバーアクションから利用する） */
+  googleRefreshToken         String?
+  googleAccessToken          String?
+  googleAccessTokenExpiresAt DateTime?
+
   subjects     Subject[]
   weeklyPlans  WeeklyPlan[]
   locations    Location[]
@@ -81,7 +86,10 @@ model Location {
   kind            LocationKind
   maxStayMin      Int?
   openingHoursJson Json?
+  openingHoursFetchedAt DateTime?
   manualHoursJson  Json?
+  /** Routes API・キャッシュとも失敗した場合の手動フォールバック（home等からの移動分数） */
+  manualTravelMin Int?
 
   fixedEvents    FixedEvent[]
   scheduleBlocks ScheduleBlock[]

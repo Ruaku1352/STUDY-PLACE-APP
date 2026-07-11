@@ -1,0 +1,283 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { combineDateAndTime, dateStringToDate, dateToDateString, todayDateString } from "@/lib/date";
+import { getCurrentUserId } from "@/lib/currentUser";
+import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
+import {
+  createCalendarEventsForBlocks,
+  deleteCalendarEventsByIds,
+  revealCalendarEventsForBlocks,
+} from "@/lib/google/calendarSync";
+import { buildSyncableBlocks } from "@/lib/google/syncableBlocks";
+import { prisma } from "@/lib/prisma";
+import { prismaBlockToScheduler, schedulerBlockToPrismaCreate } from "@/lib/scheduleBlocks";
+import { reroll } from "@/lib/scheduler/reroll";
+import { reschedule } from "@/lib/scheduler/reschedule";
+import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
+
+function currentWeekStart(today: string): string {
+  return addDaysToDate(today, -weekdayIndex(today));
+}
+
+function datesBetween(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  let d = startDate;
+  while (d <= endDate) {
+    dates.push(d);
+    d = addDaysToDate(d, 1);
+  }
+  return dates;
+}
+
+export async function revealToday(): Promise<void> {
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+  const updated = await prisma.dayState.updateMany({
+    where: { userId, date: dateStringToDate(today), revealedAt: null },
+    data: { revealedAt: new Date() },
+  });
+
+  if (updated.count > 0) {
+    try {
+      const blocks = await prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today) } });
+      const syncable = await buildSyncableBlocks(userId, blocks);
+      await revealCalendarEventsForBlocks(userId, syncable);
+    } catch (e) {
+      console.error("[revealToday] Googleカレンダーの更新に失敗しました", e);
+    }
+  }
+
+  revalidatePath("/");
+}
+
+export async function giveUpToday(): Promise<void> {
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+  const dayState = await prisma.dayState.findUnique({
+    where: { userId_date: { userId, date: dateStringToDate(today) } },
+  });
+  if (!dayState) return;
+
+  const wasRevealed = Boolean(dayState.revealedAt);
+
+  await prisma.dayState.update({
+    where: { id: dayState.id },
+    data: { gaveUp: true, revealedAt: dayState.revealedAt ?? new Date() },
+  });
+
+  if (!wasRevealed) {
+    try {
+      const blocks = await prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today) } });
+      const syncable = await buildSyncableBlocks(userId, blocks);
+      await revealCalendarEventsForBlocks(userId, syncable);
+    } catch (e) {
+      console.error("[giveUpToday] Googleカレンダーの更新に失敗しました", e);
+    }
+  }
+
+  revalidatePath("/");
+}
+
+export async function rerollToday(): Promise<void> {
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+  const dayState = await prisma.dayState.findUnique({
+    where: { userId_date: { userId, date: dateStringToDate(today) } },
+  });
+  if (!dayState || dayState.rerollUsed) return;
+
+  const weekStartDate = currentWeekStart(today);
+  const input = await buildSchedulerInput(userId, weekStartDate);
+
+  const previousBlocksRaw = await prisma.scheduleBlock.findMany({
+    where: { userId, date: dateStringToDate(today) },
+  });
+
+  const result = reroll({
+    date: today,
+    previousBlocks: previousBlocksRaw.map(prismaBlockToScheduler),
+    subjects: input.subjects,
+    locations: input.locations,
+    fixedEvents: input.fixedEvents.filter((e) => e.date === today),
+    settings: input.settings,
+    travelTimeFn: input.travelTimeFn,
+    recentlyUsedLocationIds: input.recentlyUsedLocationIds,
+  });
+
+  await prisma.$transaction([
+    prisma.scheduleBlock.deleteMany({ where: { userId, date: dateStringToDate(today) } }),
+    prisma.scheduleBlock.createMany({
+      data: result.blocks.map((b) => schedulerBlockToPrismaCreate(userId, b)),
+    }),
+    prisma.dayState.update({ where: { id: dayState.id }, data: { rerollUsed: true } }),
+  ]);
+
+  try {
+    await deleteCalendarEventsByIds(
+      userId,
+      previousBlocksRaw.map((b) => b.gcalEventId),
+    );
+
+    const newBlocks = await prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today) } });
+    const syncable = await buildSyncableBlocks(userId, newBlocks);
+    // reroll は開封済みの当日にしか使えないので、新しいブロックは最初から実名で作成する
+    const revealedIds = new Set(syncable.map((b) => b.id));
+    const eventIdByBlockId = await createCalendarEventsForBlocks(userId, syncable, revealedIds);
+
+    await Promise.all(
+      Array.from(eventIdByBlockId.entries()).map(([blockId, gcalEventId]) =>
+        prisma.scheduleBlock.update({ where: { id: blockId }, data: { gcalEventId } }),
+      ),
+    );
+  } catch (e) {
+    console.error("[rerollToday] Googleカレンダーの同期に失敗しました", e);
+  }
+
+  revalidatePath("/");
+}
+
+export async function reschedulePlan(): Promise<void> {
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+  const weekStartDate = currentWeekStart(today);
+  const weekEndDate = addDaysToDate(weekStartDate, 6);
+
+  const todaysBlocks = await prisma.scheduleBlock.findMany({
+    where: { userId, date: dateStringToDate(today) },
+  });
+  const todayHasProgress = todaysBlocks.some((b) => b.status === "done" || b.status === "partial");
+  const fromDate = todayHasProgress ? addDaysToDate(today, 1) : today;
+
+  if (fromDate > weekEndDate) {
+    revalidatePath("/");
+    return;
+  }
+
+  const completedRows = await prisma.scheduleBlock.findMany({
+    where: {
+      userId,
+      date: { gte: dateStringToDate(weekStartDate), lte: combineDateAndTime(weekEndDate, "23:59") },
+      status: { in: ["done", "partial"] },
+    },
+  });
+
+  const input = await buildSchedulerInput(userId, weekStartDate);
+  const result = reschedule({
+    ...input,
+    fromDate,
+    completedBlocks: completedRows.map(prismaBlockToScheduler),
+  });
+
+  const rangeStart = dateStringToDate(fromDate);
+  const rangeEnd = combineDateAndTime(weekEndDate, "23:59");
+
+  const oldBlocks = await prisma.scheduleBlock.findMany({
+    where: { userId, date: { gte: rangeStart, lte: rangeEnd } },
+    select: { gcalEventId: true },
+  });
+
+  await prisma.$transaction([
+    prisma.scheduleBlock.deleteMany({ where: { userId, date: { gte: rangeStart, lte: rangeEnd } } }),
+    prisma.dayState.deleteMany({ where: { userId, date: { gte: rangeStart, lte: rangeEnd } } }),
+    prisma.scheduleBlock.createMany({
+      data: result.blocks.map((b) => schedulerBlockToPrismaCreate(userId, b)),
+    }),
+    prisma.dayState.createMany({
+      data: datesBetween(fromDate, weekEndDate).map((d) => ({
+        userId,
+        date: dateStringToDate(d),
+        rerollUsed: false,
+        gaveUp: false,
+      })),
+    }),
+  ]);
+
+  try {
+    await deleteCalendarEventsByIds(
+      userId,
+      oldBlocks.map((b) => b.gcalEventId),
+    );
+
+    const newBlocks = await prisma.scheduleBlock.findMany({
+      where: { userId, date: { gte: rangeStart, lte: rangeEnd } },
+    });
+    const syncable = await buildSyncableBlocks(userId, newBlocks);
+    // fromDate が今日の場合、今日はすでに開封済み（ボタンは開封後のみ表示）なので実名で作成する
+    const revealedIds = new Set(syncable.filter((b) => dateToDateString(b.startsAt) === today).map((b) => b.id));
+    const eventIdByBlockId = await createCalendarEventsForBlocks(userId, syncable, revealedIds);
+
+    await Promise.all(
+      Array.from(eventIdByBlockId.entries()).map(([blockId, gcalEventId]) =>
+        prisma.scheduleBlock.update({ where: { id: blockId }, data: { gcalEventId } }),
+      ),
+    );
+  } catch (e) {
+    console.error("[reschedulePlan] Googleカレンダーの同期に失敗しました", e);
+  }
+
+  revalidatePath("/");
+}
+
+export async function updateBlockStatus(
+  blockId: string,
+  status: "done" | "partial" | "skipped",
+  actualMin: number,
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  await prisma.scheduleBlock.updateMany({
+    where: { id: blockId, userId },
+    data: { status, actualMin },
+  });
+  revalidatePath("/");
+}
+
+export async function updateBlockManual(blockId: string, formData: FormData): Promise<void> {
+  const userId = await getCurrentUserId();
+  const block = await prisma.scheduleBlock.findFirst({ where: { id: blockId, userId } });
+  if (!block) return;
+
+  const dateStr = todayDateString();
+  const startsAt = String(formData.get("startsAt") ?? "");
+  const endsAt = String(formData.get("endsAt") ?? "");
+  const locationId = String(formData.get("locationId") ?? "") || null;
+
+  await prisma.scheduleBlock.update({
+    where: { id: blockId },
+    data: {
+      startsAt: combineDateAndTime(dateStr, startsAt),
+      endsAt: combineDateAndTime(dateStr, endsAt),
+      locationId,
+    },
+  });
+
+  if (block.gcalEventId) {
+    try {
+      const updatedBlock = await prisma.scheduleBlock.findUniqueOrThrow({ where: { id: blockId } });
+      const [syncable] = await buildSyncableBlocks(userId, [updatedBlock]);
+      await revealCalendarEventsForBlocks(userId, [syncable]);
+    } catch (e) {
+      console.error("[updateBlockManual] Googleカレンダーの更新に失敗しました", e);
+    }
+  }
+
+  revalidatePath("/");
+}
+
+export async function deleteBlockManual(blockId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  const block = await prisma.scheduleBlock.findFirst({ where: { id: blockId, userId } });
+  if (!block) return;
+
+  await prisma.scheduleBlock.deleteMany({ where: { id: blockId, userId } });
+
+  if (block.gcalEventId) {
+    try {
+      await deleteCalendarEventsByIds(userId, [block.gcalEventId]);
+    } catch (e) {
+      console.error("[deleteBlockManual] Googleカレンダーの削除に失敗しました", e);
+    }
+  }
+
+  revalidatePath("/");
+}

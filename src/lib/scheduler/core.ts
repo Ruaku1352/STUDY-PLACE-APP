@@ -11,6 +11,8 @@ import type {
 export interface SubjectState {
   subject: SchedulerSubject;
   remaining: number;
+  /** 今日この科目に割り当ててよい残り分数（週の均等配分のための上限）。 */
+  dailyLimit: number;
 }
 
 const MIN_BLOCK = 60;
@@ -32,7 +34,7 @@ function businessCloseMin(loc: SchedulerLocation, weekday: number): number | und
 }
 
 function pickSubject(states: SubjectState[], nowMin: number, morningEndMin: number): SubjectState | undefined {
-  const eligible = states.filter((s) => s.remaining > 0);
+  const eligible = states.filter((s) => s.remaining > 0 && s.dailyLimit > 0);
   if (eligible.length === 0) return undefined;
   const byPriority = (a: SubjectState, b: SubjectState) => a.subject.priority - b.subject.priority;
   const inMorning = nowMin < morningEndMin;
@@ -126,7 +128,7 @@ function fillWindow(params: {
   let loc = params.startLocation;
 
   while (windowEnd - t >= MIN_BLOCK) {
-    if (!subjectStates.some((s) => s.remaining > 0)) break;
+    if (!subjectStates.some((s) => s.remaining > 0 && s.dailyLimit > 0)) break;
 
     const picked = chooseLocation({
       locations,
@@ -171,7 +173,10 @@ function fillWindow(params: {
       if (!subj) break;
 
       const remainingSession = sessionCap - t;
-      const chunk = Math.min(remainingSession, Math.max(MIN_BLOCK, Math.min(subj.remaining, MAX_CHUNK)));
+      const chunk = Math.min(
+        remainingSession,
+        Math.max(MIN_BLOCK, Math.min(subj.remaining, subj.dailyLimit, MAX_CHUNK)),
+      );
 
       blocksOut.push({
         date,
@@ -183,6 +188,7 @@ function fillWindow(params: {
         status: "planned",
       });
       subj.remaining = Math.max(0, subj.remaining - chunk);
+      subj.dailyLimit = Math.max(0, subj.dailyLimit - chunk);
       t += chunk;
 
       if (chunk >= BREAK_THRESHOLD && sessionCap - t >= 20) {

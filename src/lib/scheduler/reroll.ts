@@ -38,7 +38,11 @@ export function reroll(input: RerollInput): RerollResult {
 
   const subjectStates: SubjectState[] = input.subjects
     .filter((s) => targetMinutesBySubject.has(s.id))
-    .map((s) => ({ subject: s, remaining: targetMinutesBySubject.get(s.id)! }));
+    .map((s) => {
+      const target = targetMinutesBySubject.get(s.id)!;
+      // reroll は単日の再抽選なので、週配分の上限は課さず前回のその日の配分をそのまま上限にする
+      return { subject: s, remaining: target, dailyLimit: target };
+    });
 
   // 前回と同じ場所構成にならないよう、選択肢があれば前回使った場所を除外する
   const alternativeLocations = input.locations.filter((l) => !previousLocationIds.has(l.id));
