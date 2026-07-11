@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { auth, signOut } from "@/auth";
 import { BottomNav } from "./BottomNav";
 import "./globals.css";
@@ -6,6 +6,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "勉強スケジュール管理アプリ",
   description: "デイリーガチャ形式の勉強スケジュール管理アプリ",
+  appleWebApp: {
+    title: "スタディガチャ",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#29539d",
 };
 
 const NAV_ITEMS = [
