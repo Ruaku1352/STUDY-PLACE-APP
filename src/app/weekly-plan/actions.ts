@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { combineDateAndTime, dateStringToDate } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { buildWeeklyReviewInput } from "@/lib/ai/buildWeeklyReviewInput";
-import { generateWeeklyProposal, type WeeklyProposal } from "@/lib/ai/weeklyProposal";
+import { generateRandomInitialProposal, generateWeeklyProposal, type WeeklyProposal } from "@/lib/ai/weeklyProposal";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import { createCalendarEventsForBlocks, deleteCalendarEventsByIds } from "@/lib/google/calendarSync";
 import { buildSyncableBlocks } from "@/lib/google/syncableBlocks";
@@ -107,11 +107,13 @@ export async function generateAiProposal(weekStartDate: string): Promise<{ propo
     const subjects = await prisma.subject.findMany({ where: { userId } });
     if (subjects.length === 0) return { proposal: null };
 
+    const subjectsMeta = subjects.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin, timeSlot: s.timeSlot }));
     const reviewInput = await buildWeeklyReviewInput(userId, weekStartDate);
-    const proposal = await generateWeeklyProposal(
-      reviewInput,
-      subjects.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin, timeSlot: s.timeSlot })),
-    );
+    // 実績データが1週間も無い初回はAIに判断材料が無いため、AIを呼ばずランダムに初期提案を作成する
+    const proposal =
+      reviewInput.weeksObserved === 0
+        ? generateRandomInitialProposal(subjectsMeta)
+        : await generateWeeklyProposal(reviewInput, subjectsMeta);
 
     await prisma.weeklyPlan.upsert({
       where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },

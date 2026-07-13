@@ -60,7 +60,7 @@ export function ProgressChart({
 
   return (
     <div>
-      <div className="row" style={{ gap: "1rem", marginBottom: "0.5rem", fontSize: "0.8rem" }}>
+      <div className="row" style={{ gap: "0.5rem 1rem", marginBottom: "0.5rem", fontSize: "0.8rem", flexWrap: "wrap" }}>
         <span className="row" style={{ gap: "0.35rem" }}>
           <span
             style={{

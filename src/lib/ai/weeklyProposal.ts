@@ -97,3 +97,32 @@ export async function generateWeeklyProposal(
 
   return JSON.parse(textBlock.text) as WeeklyProposal;
 }
+
+const RANDOM_QUOTA_VARIATION_RATIO = 0.15;
+const MIN_RANDOM_QUOTA_MIN = 30;
+
+/**
+ * 実績データが1週間も無い初回用の提案を、AIを呼ばずにランダムに生成する純粋関数。
+ * ノルマは現在値の±15%の範囲でランダムに揺らす（ガチャらしい遊び要素として）。
+ * タグ（morning/anytime）は変更しない。乱数はMath.randomではなくrandomFnとして注入可能にし、テスト容易性を確保する。
+ */
+export function generateRandomInitialProposal(
+  subjects: ProposalSubjectMeta[],
+  randomFn: () => number = Math.random,
+): WeeklyProposal {
+  return {
+    overallComment:
+      "まだ実績データが無いため、今回はAI分析ではなくランダムに初回のノルマを作成しました。数値はあくまで参考です。来週以降、実績が貯まるとAIが分析して提案します。",
+    confidence: "provisional",
+    subjects: subjects.map((s) => {
+      const variation = 1 + (randomFn() * 2 - 1) * RANDOM_QUOTA_VARIATION_RATIO;
+      const proposedQuotaMin = Math.max(MIN_RANDOM_QUOTA_MIN, Math.round((s.weeklyQuotaMin * variation) / 5) * 5);
+      return {
+        subjectId: s.id,
+        proposedQuotaMin,
+        timeSlotChange: "no_change",
+        reason: "実績データが無いため、現在のノルマを基準にランダムに設定しました。",
+      };
+    }),
+  };
+}
