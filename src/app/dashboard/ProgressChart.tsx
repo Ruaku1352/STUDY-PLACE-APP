@@ -110,12 +110,7 @@ export function ProgressChart({
           />
           <YAxis type="category" dataKey="name" width={90} stroke="var(--muted)" fontSize={12} />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
-          <ReferenceLine
-            x={idealPacePercent}
-            stroke="var(--chart-reference)"
-            strokeDasharray="4 4"
-            label={{ value: `理想ペース ${idealPacePercent}%`, position: "top", fill: "var(--muted)", fontSize: 11 }}
-          />
+          <ReferenceLine x={idealPacePercent} stroke="var(--chart-reference)" strokeDasharray="4 4" />
           <Bar dataKey="percent" radius={[0, 4, 4, 0]} maxBarSize={28}>
             {data.map((d) => (
               <Cell key={d.subjectId} fill={d.status === "good" ? "var(--status-good)" : "var(--status-critical)"} />

@@ -15,6 +15,10 @@ import {
 import { RevealButton } from "./RevealButton";
 import { TodayClient, type BookOption, type TodayBlock } from "./TodayClient";
 
+// 開封時のミッション文生成（Claude API呼び出し）がVercelのデフォルト実行時間上限（10秒）を
+// 超えてタイムアウトすることがあるため、上限を延長する（Hobbyプランの上限=60秒）。
+export const maxDuration = 60;
+
 export default async function TodayPage() {
   const userId = await getCurrentUserId();
   const today = todayDateString();

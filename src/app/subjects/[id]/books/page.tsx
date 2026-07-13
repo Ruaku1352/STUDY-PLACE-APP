@@ -6,6 +6,10 @@ import { calcBookProgress } from "@/lib/books";
 import { createBook, deleteBook, scanBookCover } from "./actions";
 import { AddBookForm } from "./AddBookForm";
 
+// 表紙vision解析（Claude API呼び出し）がVercelのデフォルト実行時間上限（10秒）を
+// 超えてタイムアウトすることがあるため、上限を延長する（Hobbyプランの上限=60秒）。
+export const maxDuration = 60;
+
 export default async function SubjectBooksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getCurrentUserId();

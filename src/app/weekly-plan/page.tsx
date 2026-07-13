@@ -7,6 +7,10 @@ import { applyAiProposal, generateAiProposal, generatePlan } from "./actions";
 import { AiProposalCard } from "./AiProposalCard";
 import { PriorityList } from "./PriorityList";
 
+// 週次AIノルマ提案（Claude API呼び出し）がVercelのデフォルト実行時間上限（10秒）を
+// 超えてタイムアウトすることがあるため、上限を延長する（Hobbyプランの上限=60秒）。
+export const maxDuration = 60;
+
 function currentWeekStart(): string {
   const today = todayDateString();
   return addDaysToDate(today, -weekdayIndex(today));
