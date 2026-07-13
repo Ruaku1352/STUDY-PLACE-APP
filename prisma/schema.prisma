@@ -205,6 +205,8 @@ model DayState {
   revealedAt  DateTime?
   rerollUsed  Boolean   @default(false)
   gaveUp      Boolean   @default(false)
+  /** 開封時に生成する「本日の任務」風の演出テキスト。失敗時は固定文にフォールバックするためnull許容。 */
+  missionText String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

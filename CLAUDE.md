@@ -45,6 +45,7 @@
 ## ディレクトリ方針
 - `src/lib/scheduler/` 純粋ロジック（API・DB非依存）
 - `src/lib/google/` Google API クライアント＋キャッシュ層
+- `src/lib/ai/` Claude API クライアント＋AI関連ロジック（週次ノルマ提案・参考書vision抽出・ミッション文生成）
 - `src/app/` 画面とAPI Routes / `prisma/` スキーマ / `tasks/` フェーズ別作業指示
 
 ## 進行状況（フェーズ完了時にここを更新すること）
@@ -54,3 +55,4 @@
 - [x] Phase 3: タイムラインUI・管理画面
 - [x] Phase 4: Googleログイン＋Calendar連携
 - [x] Phase 5: 進捗グラフ・実績・デプロイ（ハッカソン前成果物 完成）
+- [x] Phase 6: AI活用（週次ノルマ提案・ミッション文）・参考書・ストリーク

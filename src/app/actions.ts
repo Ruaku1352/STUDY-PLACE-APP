@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { combineDateAndTime, dateStringToDate, dateToDateString, todayDateString } from "@/lib/date";
+import { combineDateAndTime, dateStringToDate, dateToDateString, dateToHHMM, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { FALLBACK_MISSION_TEXT, generateMissionText } from "@/lib/ai/missionText";
 import { calcBookProgress } from "@/lib/books";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import {
@@ -32,7 +33,46 @@ function datesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-export async function revealToday(): Promise<void> {
+/**
+ * 開封演出用のミッション文を生成してDayStateに保存する。失敗時は固定文にフォールバックする。
+ * force=falseの場合、既に生成済みならAPIを再呼び出しせずキャッシュを返す（1日1回のみ生成というコスト対策）。
+ * リロール時はforce=trueで再生成してよい。
+ */
+async function generateAndSaveMissionText(userId: string, today: string, force = false): Promise<string> {
+  const dayState = await prisma.dayState.findUnique({
+    where: { userId_date: { userId, date: dateStringToDate(today) } },
+  });
+  if (!force && dayState?.missionText) return dayState.missionText;
+
+  try {
+    const [blocks, subjects, locations, streak] = await Promise.all([
+      prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
+      prisma.subject.findMany({ where: { userId } }),
+      prisma.location.findMany({ where: { userId } }),
+      prisma.streak.findUnique({ where: { userId } }),
+    ]);
+    const subjectNameById = new Map(subjects.map((s) => [s.id, s.name]));
+    const locationNameById = new Map(locations.map((l) => [l.id, l.name]));
+
+    const missionText = await generateMissionText({
+      blocks: blocks.map((b) => ({
+        subjectName: b.subjectId ? (subjectNameById.get(b.subjectId) ?? null) : null,
+        locationName: b.locationId ? (locationNameById.get(b.locationId) ?? null) : null,
+        startsAt: dateToHHMM(b.startsAt),
+        endsAt: dateToHHMM(b.endsAt),
+      })),
+      streakDays: streak?.currentCount ?? 0,
+    });
+
+    await prisma.dayState.updateMany({ where: { userId, date: dateStringToDate(today) }, data: { missionText } });
+    return missionText;
+  } catch (e) {
+    console.error("[generateAndSaveMissionText] ミッション文の生成に失敗しました。固定文にフォールバックします", e);
+    return FALLBACK_MISSION_TEXT;
+  }
+}
+
+export async function revealToday(): Promise<{ missionText: string }> {
   const userId = await getCurrentUserId();
   const today = todayDateString();
   const updated = await prisma.dayState.updateMany({
@@ -50,7 +90,10 @@ export async function revealToday(): Promise<void> {
     }
   }
 
+  const missionText = await generateAndSaveMissionText(userId, today);
+
   revalidatePath("/");
+  return { missionText };
 }
 
 export async function giveUpToday(): Promise<void> {
@@ -135,6 +178,8 @@ export async function rerollToday(): Promise<void> {
   } catch (e) {
     console.error("[rerollToday] Googleカレンダーの同期に失敗しました", e);
   }
+
+  await generateAndSaveMissionText(userId, today, true);
 
   revalidatePath("/");
 }
