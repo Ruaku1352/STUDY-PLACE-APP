@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { combineDateAndTime, dateStringToDate } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { buildWeeklyReviewInput } from "@/lib/ai/buildWeeklyReviewInput";
+import { generateWeeklyProposal, type WeeklyProposal } from "@/lib/ai/weeklyProposal";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import { createCalendarEventsForBlocks, deleteCalendarEventsByIds } from "@/lib/google/calendarSync";
 import { buildSyncableBlocks } from "@/lib/google/syncableBlocks";
@@ -85,4 +87,74 @@ export async function generatePlan(weekStartDate: string, orderedSubjectIds: str
   revalidatePath("/weekly-plan");
 
   return { warnings: result.warnings };
+}
+
+/**
+ * 週次AIノルマ提案を取得する。既にキャッシュ済みならそれを返し、無ければ実績を集計してClaude APIに提案を生成させる。
+ * AI呼び出しに失敗しても例外は投げず、呼び出し元が手動UIに自然にフォールバックできるよう null を返す。
+ */
+export async function generateAiProposal(weekStartDate: string): Promise<{ proposal: WeeklyProposal | null }> {
+  const userId = await getCurrentUserId();
+
+  const existing = await prisma.weeklyPlan.findUnique({
+    where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
+  });
+  if (existing?.aiProposalJson) {
+    return { proposal: existing.aiProposalJson as unknown as WeeklyProposal };
+  }
+
+  try {
+    const subjects = await prisma.subject.findMany({ where: { userId } });
+    if (subjects.length === 0) return { proposal: null };
+
+    const reviewInput = await buildWeeklyReviewInput(userId, weekStartDate);
+    const proposal = await generateWeeklyProposal(
+      reviewInput,
+      subjects.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin, timeSlot: s.timeSlot })),
+    );
+
+    await prisma.weeklyPlan.upsert({
+      where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
+      create: {
+        userId,
+        weekStartDate: dateStringToDate(weekStartDate),
+        priorities: subjects.map((s) => s.id),
+        aiProposalJson: proposal as unknown as object,
+        aiProposalAt: new Date(),
+      },
+      update: { aiProposalJson: proposal as unknown as object, aiProposalAt: new Date() },
+    });
+
+    revalidatePath("/weekly-plan");
+    return { proposal };
+  } catch (e) {
+    console.error("[generateAiProposal] AI提案の生成に失敗しました", e);
+    return { proposal: null };
+  }
+}
+
+/** AI提案の値をSubjectに反映してから、通常のプラン生成を行う。 */
+export async function applyAiProposal(weekStartDate: string, orderedSubjectIds: string[]): Promise<GeneratePlanResult> {
+  const userId = await getCurrentUserId();
+
+  const weeklyPlan = await prisma.weeklyPlan.findUnique({
+    where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
+  });
+  const proposal = weeklyPlan?.aiProposalJson as unknown as WeeklyProposal | undefined;
+
+  if (proposal) {
+    await Promise.all(
+      proposal.subjects.map((s) =>
+        prisma.subject.updateMany({
+          where: { id: s.subjectId, userId },
+          data: {
+            weeklyQuotaMin: s.proposedQuotaMin,
+            ...(s.timeSlotChange !== "no_change" ? { timeSlot: s.timeSlotChange } : {}),
+          },
+        }),
+      ),
+    );
+  }
+
+  return generatePlan(weekStartDate, orderedSubjectIds);
 }

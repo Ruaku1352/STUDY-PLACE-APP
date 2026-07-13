@@ -62,6 +62,9 @@ model WeeklyPlan {
   weekStartDate DateTime
   // 優先順位: subjectId の配列 (JSON)
   priorities    Json
+  // 週次AIノルマ提案のキャッシュ（WeeklyProposal型）。週ごとに1回だけ生成する。
+  aiProposalJson Json?
+  aiProposalAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

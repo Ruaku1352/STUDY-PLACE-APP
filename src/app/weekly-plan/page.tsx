@@ -2,7 +2,9 @@ import { todayDateString, dateStringToDate } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
-import { generatePlan } from "./actions";
+import type { WeeklyProposal } from "@/lib/ai/weeklyProposal";
+import { applyAiProposal, generateAiProposal, generatePlan } from "./actions";
+import { AiProposalCard } from "./AiProposalCard";
 import { PriorityList } from "./PriorityList";
 
 function currentWeekStart(): string {
@@ -34,6 +36,14 @@ export default async function WeeklyPlanPage() {
       <p className="muted" style={{ marginBottom: "1rem" }}>
         対象週: {weekStartDate} 〜 {addDaysToDate(weekStartDate, 6)}
       </p>
+      <AiProposalCard
+        weekStartDate={weekStartDate}
+        initialProposal={weeklyPlan?.aiProposalJson ? (weeklyPlan.aiProposalJson as unknown as WeeklyProposal) : null}
+        subjects={ordered.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin }))}
+        orderedSubjectIds={ordered.map((s) => s.id)}
+        generateAiProposalAction={generateAiProposal}
+        applyAiProposalAction={applyAiProposal}
+      />
       <PriorityList
         weekStartDate={weekStartDate}
         initialSubjects={ordered.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin }))}
