@@ -12,7 +12,7 @@ import {
   updateBlockManual,
   updateBlockStatus,
 } from "./actions";
-import { RevealButton } from "./RevealButton";
+import { GachaMachine } from "./gacha/GachaMachine";
 import { TodayClient, type BookOption, type TodayBlock } from "./TodayClient";
 
 // 開封時のミッション文生成（Claude API呼び出し）がVercelのデフォルト実行時間上限（10秒）を
@@ -45,9 +45,13 @@ export default async function TodayPage() {
 
   if (!isRevealed) {
     return (
-      <div className="card">
-        <RevealButton revealAction={revealToday} streakDays={streakDays} />
-      </div>
+      <GachaMachine
+        mode="reveal"
+        medalsRemaining={2}
+        streakDays={streakDays}
+        action={revealToday}
+        giveUpAction={giveUpToday}
+      />
     );
   }
 

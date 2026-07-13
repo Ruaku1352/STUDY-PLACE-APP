@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toMinutes } from "@/lib/scheduler/time";
+import { GachaMachine } from "./gacha/GachaMachine";
+import type { RevealResult } from "./gacha/types";
 
 export interface TodayBlock {
   id: string;
@@ -64,7 +66,7 @@ export function TodayClient({
   streakDays: number;
   rerollUsed: boolean;
   gaveUp: boolean;
-  rerollAction: () => Promise<void>;
+  rerollAction: () => Promise<RevealResult>;
   giveUpAction: () => Promise<void>;
   reschedulePlanAction: () => Promise<void>;
   updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<void>;
@@ -77,6 +79,7 @@ export function TodayClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [partialInputId, setPartialInputId] = useState<string | null>(null);
   const [readingLogId, setReadingLogId] = useState<string | null>(null);
+  const [showRerollMachine, setShowRerollMachine] = useState(false);
 
   async function run(key: string, fn: () => Promise<void>) {
     setPending(key);
@@ -273,7 +276,7 @@ export function TodayClient({
           type="button"
           className="button-block"
           disabled={rerollUsed || pending !== null}
-          onClick={() => run("reroll", rerollAction)}
+          onClick={() => setShowRerollMachine(true)}
         >
           {rerollUsed ? "リロール済み" : "リロール（残り1回）"}
         </button>
@@ -293,6 +296,21 @@ export function TodayClient({
           今日以降を再計画
         </button>
       </div>
+
+      {showRerollMachine && (
+        <div className="gacha-reroll-overlay">
+          <GachaMachine
+            mode="reroll"
+            medalsRemaining={1}
+            streakDays={streakDays}
+            action={rerollAction}
+            onComplete={() => {
+              setShowRerollMachine(false);
+              router.refresh();
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,78 @@
+/**
+ * ガチャマシンの論理座標系とMatter.js物理定数。
+ * Canvas/SVGとも同じ論理サイズ（STAGE_WIDTH x STAGE_HEIGHT）のviewBox/解像度で描画し、
+ * CSSで実画面幅に拡大縮小する（物理演算は常にこの論理座標系で行う）。
+ */
+
+// 論理ステージ全体のサイズ（縦長）
+export const STAGE_WIDTH = 300;
+export const STAGE_HEIGHT = 520;
+
+// ドーム（球形の透明ケース）
+export const DOME_CENTER_X = STAGE_WIDTH / 2;
+export const DOME_CENTER_Y = 150;
+export const DOME_RADIUS = 108;
+export const DOME_WALL_SEGMENTS = 22; // 円を近似する静的セグメント数
+// カプセル直径(22)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
+export const DOME_WALL_THICKNESS = 14;
+
+// 排出ゲート（ドーム最下部の堰き止め）。壁の隙間を確実に覆えるよう少し広めに取る。
+export const GATE_WIDTH = 60;
+export const GATE_HEIGHT = 8;
+export const GATE_Y = DOME_CENTER_Y + DOME_RADIUS - 6;
+
+// 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）
+export const CHUTE_TOP_Y = GATE_Y + 4;
+export const CHUTE_BOTTOM_Y = 372;
+export const CHUTE_TOP_HALF_WIDTH = 26;
+export const CHUTE_BOTTOM_HALF_WIDTH = 34;
+export const CHUTE_WALL_THICKNESS = 14;
+
+// 排出完了とみなすY座標（このYを超えたカプセルは物理的に排出口へ着地したとみなす）
+export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
+
+// Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
+export const CANVAS_HEIGHT = 420;
+
+// カプセル
+export const CAPSULE_RADIUS = 11;
+export const CAPSULE_COUNT = 24;
+
+// 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
+export const CABINET_TOP = 258;
+export const CABINET_HEIGHT = 250;
+export const CABINET_X = 20;
+export const CABINET_WIDTH = STAGE_WIDTH - CABINET_X * 2;
+export const CABINET_RX = 18;
+
+export const WINDOW_X = 95;
+export const WINDOW_Y = 345;
+export const WINDOW_WIDTH = 110;
+export const WINDOW_HEIGHT = 63;
+export const WINDOW_RX = 10;
+
+export const KNOB_CX = STAGE_WIDTH / 2;
+export const KNOB_CY = 312;
+export const KNOB_R = 26;
+
+export const COIN_SLOT_CX = KNOB_CX;
+export const COIN_SLOT_CY = KNOB_CY - 34 + 11; // スリット中心
+
+// パーセント座標（レスポンシブなDOMアニメーションで使う。ステージのwidth/heightに対する割合）
+export const COIN_SLOT_PERCENT = { x: (COIN_SLOT_CX / STAGE_WIDTH) * 100, y: (COIN_SLOT_CY / STAGE_HEIGHT) * 100 };
+export const MEDAL_DOCK_PERCENT = { x: 50, y: 90 }; // タップ前のメダル待機位置
+export const WINDOW_CENTER_PERCENT = {
+  x: ((WINDOW_X + WINDOW_WIDTH / 2) / STAGE_WIDTH) * 100,
+  y: ((WINDOW_Y + WINDOW_HEIGHT / 2) / STAGE_HEIGHT) * 100,
+};
+
+// Matter.js物理パラメータ（チューニング用に外出し）
+export const RESTITUTION = 0.55; // 反発係数
+export const FRICTION = 0.05;
+export const FRICTION_AIR = 0.012;
+export const GRAVITY_Y = 1.0; // 通常時の重力スケール
+export const STIR_FORCE_MIN = 0.012;
+export const STIR_FORCE_MAX = 0.028;
+
+// Canvasの物理更新レート
+export const PHYSICS_FPS = 60;
