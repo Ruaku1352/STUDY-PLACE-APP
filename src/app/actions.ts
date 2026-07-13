@@ -16,6 +16,7 @@ import { prismaBlockToScheduler, schedulerBlockToPrismaCreate } from "@/lib/sche
 import { reroll } from "@/lib/scheduler/reroll";
 import { reschedule } from "@/lib/scheduler/reschedule";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
+import { applyDailyResult } from "@/lib/streak";
 
 function currentWeekStart(today: string): string {
   return addDaysToDate(today, -weekdayIndex(today));
@@ -230,7 +231,42 @@ export async function updateBlockStatus(
     where: { id: blockId, userId },
     data: { status, actualMin },
   });
+
+  if (status === "done" || status === "partial") {
+    await updateStreakForToday(userId);
+  }
+
   revalidatePath("/");
+}
+
+/** その日に1件以上の完了/一部完了があったことをストリークに反映する。同日内の再呼び出しは冪等。 */
+async function updateStreakForToday(userId: string): Promise<void> {
+  const today = todayDateString();
+  const streak = await prisma.streak.upsert({
+    where: { userId },
+    create: { userId },
+    update: {},
+  });
+
+  const result = applyDailyResult(
+    {
+      currentCount: streak.currentCount,
+      longestCount: streak.longestCount,
+      lastQualifiedDate: streak.lastQualifiedDate ? dateToDateString(streak.lastQualifiedDate) : null,
+      freezeUsedInWeek: streak.freezeUsedInWeek,
+    },
+    { date: today, hasProgress: true },
+  );
+
+  await prisma.streak.update({
+    where: { userId },
+    data: {
+      currentCount: result.currentCount,
+      longestCount: result.longestCount,
+      lastQualifiedDate: dateStringToDate(result.lastQualifiedDate ?? today),
+      freezeUsedInWeek: result.freezeUsedInWeek,
+    },
+  });
 }
 
 export async function updateBlockManual(blockId: string, formData: FormData): Promise<void> {

@@ -36,11 +36,13 @@ export default async function TodayPage() {
   }
 
   const isRevealed = Boolean(dayState.revealedAt) || dayState.gaveUp;
+  const streak = await prisma.streak.findUnique({ where: { userId } });
+  const streakDays = streak?.currentCount ?? 0;
 
   if (!isRevealed) {
     return (
       <div className="card">
-        <RevealButton revealAction={revealToday} />
+        <RevealButton revealAction={revealToday} streakDays={streakDays} />
       </div>
     );
   }
@@ -97,6 +99,7 @@ export default async function TodayPage() {
         blocks={blocks}
         locationOptions={locations.map((l) => ({ id: l.id, name: l.name }))}
         bookOptions={bookOptions}
+        streakDays={streakDays}
         rerollUsed={dayState.rerollUsed}
         gaveUp={dayState.gaveUp}
         rerollAction={rerollToday}

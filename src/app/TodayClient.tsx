@@ -47,6 +47,7 @@ export function TodayClient({
   blocks,
   locationOptions,
   bookOptions,
+  streakDays,
   rerollUsed,
   gaveUp,
   rerollAction,
@@ -60,6 +61,7 @@ export function TodayClient({
   blocks: TodayBlock[];
   locationOptions: LocationOption[];
   bookOptions: BookOption[];
+  streakDays: number;
   rerollUsed: boolean;
   gaveUp: boolean;
   rerollAction: () => Promise<void>;
@@ -88,6 +90,9 @@ export function TodayClient({
 
   return (
     <div>
+      <p className="muted" style={{ marginBottom: "0.75rem" }}>
+        🔥 {streakDays}日目
+      </p>
       <div className="timeline" style={{ marginBottom: "1.25rem" }}>
         {blocks.map((b, i) => {
           const fullDuration = toMinutes(b.endsAt) - toMinutes(b.startsAt);

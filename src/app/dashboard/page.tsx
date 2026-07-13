@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const weekStartDate = addDaysToDate(today, -weekdayIndex(today));
   const weekEndDate = addDaysToDate(weekStartDate, 6);
 
-  const [subjects, studyBlocks, books] = await Promise.all([
+  const [subjects, studyBlocks, books, streak] = await Promise.all([
     prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.scheduleBlock.findMany({
       where: {
@@ -22,6 +22,7 @@ export default async function DashboardPage() {
       },
     }),
     prisma.book.findMany({ where: { userId }, include: { readingLogs: true }, orderBy: { createdAt: "asc" } }),
+    prisma.streak.findUnique({ where: { userId } }),
   ]);
 
   const idealPacePercent = Math.round(((weekdayIndex(today) + 1) / 7) * 100);
@@ -47,6 +48,9 @@ export default async function DashboardPage() {
       <h1>進捗ダッシュボード</h1>
       <p className="muted" style={{ marginBottom: "1rem" }}>
         今週 {weekStartDate} 〜 {weekEndDate}（理想ペース: {idealPacePercent}%）
+      </p>
+      <p className="muted" style={{ marginBottom: "1rem" }}>
+        🔥 現在 {streak?.currentCount ?? 0}日 ・ 最長記録 {streak?.longestCount ?? 0}日
       </p>
 
       {data.length === 0 ? (
