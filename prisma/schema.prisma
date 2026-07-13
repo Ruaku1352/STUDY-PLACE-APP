@@ -29,6 +29,8 @@ model User {
   travelCaches TravelCache[]
   scheduleBlocks ScheduleBlock[]
   dayStates   DayState[]
+  books        Book[]
+  readingLogs  ReadingLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,6 +50,7 @@ model Subject {
   timeSlot       SubjectTimeSlot @default(anytime)
 
   scheduleBlocks ScheduleBlock[]
+  books          Book[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +187,8 @@ model ScheduleBlock {
   actualMin   Int?
   gcalEventId String?
 
+  readingLogs ReadingLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -205,4 +210,43 @@ model DayState {
 
   @@index([userId])
   @@unique([userId, date])
+}
+
+model Book {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId     String
+  subject       Subject   @relation(fields: [subjectId], references: [id])
+  title         String
+  publisher     String?
+  totalPages    Int?
+  /** base64 data URL（Blobストレージ未導入のためDBに直接保存） */
+  coverImageUrl String?
+  completedAt   DateTime?
+
+  readingLogs ReadingLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model ReadingLog {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId          String
+  book            Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  scheduleBlockId String?
+  scheduleBlock   ScheduleBlock? @relation(fields: [scheduleBlockId], references: [id])
+  fromPage        Int
+  toPage          Int
+  date            DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([bookId])
 }

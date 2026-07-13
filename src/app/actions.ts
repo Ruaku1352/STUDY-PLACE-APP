@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { combineDateAndTime, dateStringToDate, dateToDateString, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { calcBookProgress } from "@/lib/books";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import {
   createCalendarEventsForBlocks,
@@ -276,6 +277,31 @@ export async function deleteBlockManual(blockId: string): Promise<void> {
       await deleteCalendarEventsByIds(userId, [block.gcalEventId]);
     } catch (e) {
       console.error("[deleteBlockManual] Googleカレンダーの削除に失敗しました", e);
+    }
+  }
+
+  revalidatePath("/");
+}
+
+/** 勉強ブロックに紐づく参考書のページ実績を記録する。未入力でも完了記録・ストリークには影響しない任意機能。 */
+export async function recordReadingLog(blockId: string, bookId: string, fromPage: number, toPage: number): Promise<void> {
+  const userId = await getCurrentUserId();
+
+  const [block, book] = await Promise.all([
+    prisma.scheduleBlock.findFirst({ where: { id: blockId, userId } }),
+    prisma.book.findFirst({ where: { id: bookId, userId } }),
+  ]);
+  if (!block || !book) return;
+
+  await prisma.readingLog.create({
+    data: { userId, bookId, scheduleBlockId: blockId, fromPage, toPage, date: block.date },
+  });
+
+  if (!book.completedAt) {
+    const maxPageRead = await prisma.readingLog.aggregate({ where: { bookId }, _max: { toPage: true } });
+    const { completed } = calcBookProgress(book.totalPages, maxPageRead._max.toPage ?? 0);
+    if (completed) {
+      await prisma.book.update({ where: { id: bookId }, data: { completedAt: new Date() } });
     }
   }
 

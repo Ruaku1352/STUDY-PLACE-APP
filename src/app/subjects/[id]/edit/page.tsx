@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +44,10 @@ export default async function EditSubjectPage({ params }: { params: Promise<{ id
           保存
         </button>
       </form>
+
+      <p style={{ marginTop: "0.75rem" }}>
+        <Link href={`/subjects/${subject.id}/books`}>📷 参考書を管理</Link>
+      </p>
 
       <form action={deleteWithId} style={{ marginTop: "0.75rem" }}>
         <button type="submit" className="button-danger button-block">

@@ -14,11 +14,18 @@ export interface TodayBlock {
   locationName: string | null;
   status: "planned" | "done" | "partial" | "skipped";
   actualMin: number | null;
+  subjectId: string | null;
 }
 
 export interface LocationOption {
   id: string;
   name: string;
+}
+
+export interface BookOption {
+  id: string;
+  title: string;
+  subjectId: string;
 }
 
 const TYPE_LABEL: Record<TodayBlock["type"], string> = {
@@ -39,6 +46,7 @@ const STATUS_LABEL: Record<TodayBlock["status"], string> = {
 export function TodayClient({
   blocks,
   locationOptions,
+  bookOptions,
   rerollUsed,
   gaveUp,
   rerollAction,
@@ -47,9 +55,11 @@ export function TodayClient({
   updateBlockStatusAction,
   updateBlockManualAction,
   deleteBlockManualAction,
+  recordReadingLogAction,
 }: {
   blocks: TodayBlock[];
   locationOptions: LocationOption[];
+  bookOptions: BookOption[];
   rerollUsed: boolean;
   gaveUp: boolean;
   rerollAction: () => Promise<void>;
@@ -58,11 +68,13 @@ export function TodayClient({
   updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<void>;
   updateBlockManualAction: (blockId: string, formData: FormData) => Promise<void>;
   deleteBlockManualAction: (blockId: string) => Promise<void>;
+  recordReadingLogAction: (blockId: string, bookId: string, fromPage: number, toPage: number) => Promise<void>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [partialInputId, setPartialInputId] = useState<string | null>(null);
+  const [readingLogId, setReadingLogId] = useState<string | null>(null);
 
   async function run(key: string, fn: () => Promise<void>) {
     setPending(key);
@@ -81,6 +93,7 @@ export function TodayClient({
           const fullDuration = toMinutes(b.endsAt) - toMinutes(b.startsAt);
           const nextLocationName =
             b.type === "move" ? (blocks.slice(i + 1).find((n) => n.locationName)?.locationName ?? "") : "";
+          const subjectBooks = bookOptions.filter((book) => book.subjectId === b.subjectId);
 
           return (
             <div key={b.id} className="timeline-block" data-type={b.type}>
@@ -148,6 +161,50 @@ export function TodayClient({
                       style={{ width: "5rem" }}
                     />
                     <span className="muted">分 実施</span>
+                    <button type="submit" className="button-primary">
+                      記録
+                    </button>
+                  </form>
+                )}
+
+                {b.type === "study" && !gaveUp && subjectBooks.length > 0 && (
+                  <div style={{ marginTop: "0.4rem" }}>
+                    <button type="button" onClick={() => setReadingLogId(readingLogId === b.id ? null : b.id)}>
+                      📖 ページを記録
+                    </button>
+                  </div>
+                )}
+
+                {readingLogId === b.id && (
+                  <form
+                    className="stack"
+                    style={{ marginTop: "0.4rem" }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const bookId = String(formData.get("bookId") ?? "");
+                      const fromPage = Number(formData.get("fromPage"));
+                      const toPage = Number(formData.get("toPage"));
+                      run(`reading-${b.id}`, () => recordReadingLogAction(b.id, bookId, fromPage, toPage)).then(() =>
+                        setReadingLogId(null),
+                      );
+                    }}
+                  >
+                    <select name="bookId" required defaultValue="">
+                      <option value="" disabled>
+                        参考書を選択
+                      </option>
+                      {subjectBooks.map((book) => (
+                        <option key={book.id} value={book.id}>
+                          {book.title}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="row">
+                      <input type="number" name="fromPage" min={0} placeholder="開始ページ" required style={{ width: "6rem" }} />
+                      <span>〜</span>
+                      <input type="number" name="toPage" min={0} placeholder="終了ページ" required style={{ width: "6rem" }} />
+                    </div>
                     <button type="submit" className="button-primary">
                       記録
                     </button>

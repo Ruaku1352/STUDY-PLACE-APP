@@ -1,5 +1,6 @@
 import { combineDateAndTime, dateStringToDate, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { calcBookProgress } from "@/lib/books";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
 import { ProgressChart, type SubjectProgress } from "./ProgressChart";
@@ -11,7 +12,7 @@ export default async function DashboardPage() {
   const weekStartDate = addDaysToDate(today, -weekdayIndex(today));
   const weekEndDate = addDaysToDate(weekStartDate, 6);
 
-  const [subjects, studyBlocks] = await Promise.all([
+  const [subjects, studyBlocks, books] = await Promise.all([
     prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.scheduleBlock.findMany({
       where: {
@@ -20,6 +21,7 @@ export default async function DashboardPage() {
         date: { gte: dateStringToDate(weekStartDate), lte: combineDateAndTime(weekEndDate, "23:59") },
       },
     }),
+    prisma.book.findMany({ where: { userId }, include: { readingLogs: true }, orderBy: { createdAt: "asc" } }),
   ]);
 
   const idealPacePercent = Math.round(((weekdayIndex(today) + 1) / 7) * 100);
@@ -52,6 +54,52 @@ export default async function DashboardPage() {
       ) : (
         <div className="card">
           <ProgressChart data={data} idealPacePercent={idealPacePercent} />
+        </div>
+      )}
+
+      {books.length > 0 && (
+        <div className="card" style={{ marginTop: "1.5rem" }}>
+          <h2 style={{ marginTop: 0 }}>参考書の進捗</h2>
+          <div className="card-list">
+            {books
+              .filter((b) => !b.completedAt)
+              .map((b) => {
+                const maxPageRead = b.readingLogs.reduce((max, l) => Math.max(max, l.toPage), 0);
+                const { percent } = calcBookProgress(b.totalPages, maxPageRead);
+                return (
+                  <div key={b.id} className="list-item">
+                    <div className="list-item-main">
+                      <span className="list-item-title">{b.title}</span>
+                      <span className="list-item-sub">
+                        {b.totalPages ? `${maxPageRead}/${b.totalPages}ページ（${percent}%）` : "総ページ数未設定"}
+                      </span>
+                      <div style={{ background: "var(--border, #ddd)", borderRadius: "999px", height: "6px", marginTop: "0.3rem" }}>
+                        <div style={{ width: `${percent}%`, background: "#3b6fd6", height: "100%", borderRadius: "999px" }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            {books.every((b) => b.completedAt) && <p className="muted">読書中の参考書はありません。</p>}
+          </div>
+
+          {books.some((b) => b.completedAt) && (
+            <>
+              <h2>📚 本棚（制覇した参考書）</h2>
+              <div className="card-list">
+                {books
+                  .filter((b) => b.completedAt)
+                  .map((b) => (
+                    <div key={b.id} className="list-item">
+                      <div className="list-item-main">
+                        <span className="list-item-title">📕 {b.title}</span>
+                        <span className="list-item-sub">{b.publisher ?? ""}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

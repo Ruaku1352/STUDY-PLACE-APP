@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import {
   deleteBlockManual,
   giveUpToday,
+  recordReadingLog,
   rerollToday,
   reschedulePlan,
   revealToday,
@@ -12,7 +13,7 @@ import {
   updateBlockStatus,
 } from "./actions";
 import { RevealButton } from "./RevealButton";
-import { TodayClient, type TodayBlock } from "./TodayClient";
+import { TodayClient, type BookOption, type TodayBlock } from "./TodayClient";
 
 export default async function TodayPage() {
   const userId = await getCurrentUserId();
@@ -44,7 +45,7 @@ export default async function TodayPage() {
     );
   }
 
-  const [blocksRaw, subjects, locations, fixedEventsToday] = await Promise.all([
+  const [blocksRaw, subjects, locations, fixedEventsToday, books] = await Promise.all([
     prisma.scheduleBlock.findMany({
       where: { userId, date: dateStringToDate(today) },
       orderBy: { startsAt: "asc" },
@@ -54,6 +55,7 @@ export default async function TodayPage() {
     prisma.fixedEvent.findMany({
       where: { userId, startsAt: { gte: dateStringToDate(today), lte: combineDateAndTime(today, "23:59") } },
     }),
+    prisma.book.findMany({ where: { userId, completedAt: null } }),
   ]);
 
   const subjectNameById = new Map(subjects.map((s) => [s.id, s.name]));
@@ -79,8 +81,11 @@ export default async function TodayPage() {
       locationName: b.locationId ? (locationNameById.get(b.locationId) ?? null) : null,
       status: b.status as TodayBlock["status"],
       actualMin: b.actualMin,
+      subjectId: b.subjectId,
     };
   });
+
+  const bookOptions: BookOption[] = books.map((b) => ({ id: b.id, title: b.title, subjectId: b.subjectId }));
 
   return (
     <div>
@@ -91,6 +96,7 @@ export default async function TodayPage() {
       <TodayClient
         blocks={blocks}
         locationOptions={locations.map((l) => ({ id: l.id, name: l.name }))}
+        bookOptions={bookOptions}
         rerollUsed={dayState.rerollUsed}
         gaveUp={dayState.gaveUp}
         rerollAction={rerollToday}
@@ -99,6 +105,7 @@ export default async function TodayPage() {
         updateBlockStatusAction={updateBlockStatus}
         updateBlockManualAction={updateBlockManual}
         deleteBlockManualAction={deleteBlockManual}
+        recordReadingLogAction={recordReadingLog}
       />
     </div>
   );
