@@ -89,11 +89,21 @@ export async function generatePlan(weekStartDate: string, orderedSubjectIds: str
   return { warnings: result.warnings };
 }
 
+function describeError(e: unknown): string {
+  if (e instanceof Error) {
+    const status = (e as { status?: number }).status;
+    const type = (e as { type?: string }).type;
+    return [e.message, status ? `status=${status}` : null, type ? `type=${type}` : null].filter(Boolean).join(" / ");
+  }
+  return String(e);
+}
+
 /**
  * 週次AIノルマ提案を取得する。既にキャッシュ済みならそれを返し、無ければ実績を集計してClaude APIに提案を生成させる。
  * AI呼び出しに失敗しても例外は投げず、呼び出し元が手動UIに自然にフォールバックできるよう null を返す。
+ * error にはデバッグ用の失敗理由（メッセージ）を入れる。
  */
-export async function generateAiProposal(weekStartDate: string): Promise<{ proposal: WeeklyProposal | null }> {
+export async function generateAiProposal(weekStartDate: string): Promise<{ proposal: WeeklyProposal | null; error?: string }> {
   const userId = await getCurrentUserId();
 
   const existing = await prisma.weeklyPlan.findUnique({
@@ -131,7 +141,7 @@ export async function generateAiProposal(weekStartDate: string): Promise<{ propo
     return { proposal };
   } catch (e) {
     console.error("[generateAiProposal] AI提案の生成に失敗しました", e);
-    return { proposal: null };
+    return { proposal: null, error: describeError(e) };
   }
 }
 

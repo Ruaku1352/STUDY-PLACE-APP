@@ -28,11 +28,12 @@ export function AiProposalCard({
   initialProposal: WeeklyProposal | null;
   subjects: AiProposalSubjectMeta[];
   orderedSubjectIds: string[];
-  generateAiProposalAction: (weekStartDate: string) => Promise<{ proposal: WeeklyProposal | null }>;
+  generateAiProposalAction: (weekStartDate: string) => Promise<{ proposal: WeeklyProposal | null; error?: string }>;
   applyAiProposalAction: (weekStartDate: string, orderedSubjectIds: string[]) => Promise<{ warnings: unknown[] }>;
 }) {
   const [proposal, setProposal] = useState(initialProposal);
   const [status, setStatus] = useState<"idle" | "loading" | "failed" | "applying" | "applied">("idle");
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
 
@@ -40,11 +41,13 @@ export function AiProposalCard({
 
   async function handleGenerate() {
     setStatus("loading");
+    setErrorDetail(null);
     const result = await generateAiProposalAction(weekStartDate);
     if (result.proposal) {
       setProposal(result.proposal);
       setStatus("idle");
     } else {
+      setErrorDetail(result.error ?? null);
       setStatus("failed");
     }
   }
@@ -63,7 +66,14 @@ export function AiProposalCard({
       <div className="card" style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ marginTop: 0 }}>週次AI提案</h2>
         {status === "failed" ? (
-          <p className="muted">AI提案の生成に失敗しました。下の手動設定をご利用ください。</p>
+          <div>
+            <p className="muted">AI提案の生成に失敗しました。下の手動設定をご利用ください。</p>
+            {errorDetail && (
+              <p className="muted" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>
+                詳細: {errorDetail}
+              </p>
+            )}
+          </div>
         ) : (
           <button type="button" className="button-primary button-block" onClick={handleGenerate} disabled={status === "loading"}>
             {status === "loading" ? "生成中..." : "AI提案を生成"}
