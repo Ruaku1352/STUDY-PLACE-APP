@@ -1,14 +1,27 @@
 /**
- * カプセルの配色パレット。既存テーマ（globals.cssの --block-* 系統）から流用し、
- * アプリ全体の配色トーンと統一感を持たせる。
+ * ガチャマシンUI全体で共有するデザイントークン（配色・線幅・角丸）。
+ * 手描き風のポップなタッチに統一するため、色は「ベース／ハイライト／縁（濃色）」の
+ * 3段（PastelTriad）で定義し、全パーツがここを参照する。個別のパーツで色や線幅を
+ * 決め打ちしないことで、トーンのブレを防ぐ。
  */
-export const CAPSULE_HUES = [
-  "#4f46e5", // --block-study (indigo)
-  "#10b981", // --block-break (green)
-  "#f59e0b", // --block-lunch (amber)
-  "#ec4899", // --block-event (pink)
-  "#9ca3af", // --block-move (gray)
-] as const;
+
+export interface PastelTriad {
+  base: string;
+  highlight: string;
+  edge: string;
+}
+
+/** カプセルの配色パレット（パステル調）。既存テーマの--block-*系統の色相を保ちつつ彩度を落とし明度を上げた。 */
+export const CAPSULE_PALETTE: PastelTriad[] = [
+  { base: "#b7c0fb", highlight: "#eef0ff", edge: "#6d72d6" }, // インディゴ
+  { base: "#a6e8bf", highlight: "#e5faec", edge: "#4caf7d" }, // グリーン
+  { base: "#fbe1a0", highlight: "#fef6e0", edge: "#d99a2b" }, // アンバー
+  { base: "#f7bcdb", highlight: "#fdebf4", edge: "#d9679f" }, // ピンク
+  { base: "#d3d8e2", highlight: "#f3f5f8", edge: "#9aa3b5" }, // グレー
+];
+
+/** 後方互換用（カプセルのベース色のみの配列）。 */
+export const CAPSULE_HUES = CAPSULE_PALETTE.map((c) => c.base);
 
 export interface CapsuleColorPair {
   top: string;
@@ -24,17 +37,36 @@ export function randomCapsuleColorPair(randomFn: () => number = Math.random): Ca
   return { top: CAPSULE_HUES[i], bottom: CAPSULE_HUES[j] };
 }
 
-// 筐体・ドーム周りの固定配色（テーマのaccent/warning系に準拠）
-export const MACHINE_BODY_COLOR = "#4338ca"; // 筐体本体（濃いaccent）
-export const MACHINE_BODY_DARK_COLOR = "#3730a3"; // 影・立体感
-export const DOME_GLASS_HIGHLIGHT = "rgba(255, 255, 255, 0.55)";
-export const KNOB_COLOR = "#fbbf24"; // 金色ノブ（--warning-border系の暖色）
-export const KNOB_GROOVE_COLOR = "#b45309";
-export const MEDAL_GOLD = "#fbbf24";
-export const MEDAL_GOLD_RIM = "#b45309";
-export const WINDOW_INTERIOR_COLOR = "#1f1f2e"; // 排出口窓の暗い内側
+// 筐体（パステルなインディゴ）
+export const MACHINE_BODY: PastelTriad = { base: "#c7cdf9", highlight: "#f1f2ff", edge: "#6d72d6" };
+// 後方互換の単色エイリアス
+export const MACHINE_BODY_COLOR = MACHINE_BODY.base;
+export const MACHINE_BODY_DARK_COLOR = MACHINE_BODY.edge;
+
+export const DOME_GLASS_HIGHLIGHT = "rgba(255, 255, 255, 0.65)";
+
+// ノブ・メダル（パステルゴールド）
+export const KNOB_PASTEL: PastelTriad = { base: "#fbe1a0", highlight: "#fff6df", edge: "#d99a2b" };
+export const KNOB_COLOR = KNOB_PASTEL.base;
+export const KNOB_GROOVE_COLOR = KNOB_PASTEL.edge;
+export const MEDAL_GOLD = KNOB_PASTEL.base;
+export const MEDAL_GOLD_RIM = KNOB_PASTEL.edge;
+
+export const WINDOW_INTERIOR_COLOR = "#332f4a"; // 排出口窓の暗い内側（パステル基調に馴染む紫がかった濃紺）
 
 // ドーム上部の銀色の蓋
-export const LID_SILVER = "#d4d7dd";
-export const LID_SILVER_DARK = "#9aa0ab";
-export const LID_SILVER_HIGHLIGHT = "rgba(255, 255, 255, 0.7)";
+export const LID_PASTEL: PastelTriad = { base: "#e6e9f0", highlight: "#fbfcfd", edge: "#9aa3b5" };
+export const LID_SILVER = LID_PASTEL.base;
+export const LID_SILVER_DARK = LID_PASTEL.edge;
+export const LID_SILVER_HIGHLIGHT = "rgba(255, 255, 255, 0.8)";
+
+/** 角丸の共通トークン。パーツごとにバラバラなrxを決め打ちしないための一元値。 */
+export const RADIUS = { sm: 6, md: 12, lg: 18, xl: 24 } as const;
+
+/**
+ * 手描き風の太い縁取り線幅を、要素サイズ（直径・幅など代表寸法）の比率で返す。
+ * 目安は要素サイズの3〜5%（デフォルト4%）。小さすぎる要素でも視認できるよう下限を設ける。
+ */
+export function outlineWidth(size: number, ratio = 0.04): number {
+  return Math.max(2, size * ratio);
+}
