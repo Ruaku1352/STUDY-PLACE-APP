@@ -101,6 +101,7 @@ export function MachineFrontLayer({
   const metalGradId = useId();
   const domeClipId = useId();
   const glassClipId = useId();
+  const knobClipId = useId();
 
   // 蓋（帯）の幅は、ドーム外周の楕円をLID_CUT_Yで切った幅に合わせ、継ぎ目なく繋がって見えるようにする
   const lidSinT = Math.max(-1, Math.min(1, (LID_CUT_Y - DOME_CENTER_Y) / DOME_RADIUS_Y));
@@ -150,6 +151,10 @@ export function MachineFrontLayer({
         {/* ガラスのハイライト（縦のハイライト帯等）がガラスの輪郭からはみ出さないようにするクリップ */}
         <clipPath id={glassClipId}>
           <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4, DOME_RADIUS_Y - 4, LID_CUT_Y)} />
+        </clipPath>
+        {/* ノブの陰影（下側の影・上側のハイライト）が円からはみ出さないようにするクリップ */}
+        <clipPath id={knobClipId}>
+          <circle cx={KNOB_CX} cy={KNOB_CY} r={KNOB_R} />
         </clipPath>
       </defs>
 
@@ -356,8 +361,21 @@ export function MachineFrontLayer({
         <circle key={i} cx={sx} cy={sy} r={4} fill={KNOB_GROOVE_COLOR} opacity={0.6} />
       ))}
 
-      {/* メダル投入口（縦スリット） */}
-      <rect x={KNOB_CX - 5} y={KNOB_CY - 34} width={10} height={22} rx={RADIUS.sm} fill="#171717" stroke={KNOB_GROOVE_COLOR} strokeWidth={1.5} />
+      {/* メダル投入口（プレート上部に統合した縦スリット。ノブとは重ならない位置・サイズにする） */}
+      <rect
+        x={KNOB_CX - 6}
+        y={KNOB_CY - 36}
+        width={12}
+        height={8}
+        rx={3}
+        fill="#171717"
+        stroke={KNOB_GROOVE_COLOR}
+        strokeWidth={1.5}
+      />
+      <rect x={KNOB_CX - 4} y={KNOB_CY - 30.5} width={8} height={1.2} fill="rgba(255, 255, 255, 0.35)" />
+
+      {/* ノブの下に落ちる影（プレートに接地しているような立体感を出す） */}
+      <ellipse cx={KNOB_CX} cy={KNOB_CY + KNOB_R * 0.62} rx={KNOB_R * 0.92} ry={KNOB_R * 0.32} fill="rgba(0, 0, 0, 0.16)" />
 
       {/* 回転ノブ（アニメーションはこのgに親からclassを付けて回転させる） */}
       <g
@@ -372,6 +390,11 @@ export function MachineFrontLayer({
           stroke={KNOB_GROOVE_COLOR}
           strokeWidth={outlineWidth(KNOB_R * 2)}
         />
+        {/* 円の輪郭内だけに収まる下側の陰影＋上側のハイライトで球体らしい立体感を出す */}
+        <g clipPath={`url(#${knobClipId})`}>
+          <ellipse cx={KNOB_CX} cy={KNOB_CY + KNOB_R * 0.55} rx={KNOB_R * 1.05} ry={KNOB_R * 0.6} fill="rgba(0, 0, 0, 0.14)" />
+          <ellipse cx={KNOB_CX - KNOB_R * 0.3} cy={KNOB_CY - KNOB_R * 0.45} rx={KNOB_R * 0.55} ry={KNOB_R * 0.32} fill="rgba(255, 255, 255, 0.45)" />
+        </g>
         <rect x={KNOB_CX - KNOB_R + 6} y={KNOB_CY - 2.5} width={(KNOB_R - 6) * 2} height={5} rx={2.5} fill={KNOB_GROOVE_COLOR} />
       </g>
 
@@ -397,27 +420,22 @@ export function MachineFrontLayer({
         style={{ transformOrigin: `${WINDOW_X + WINDOW_WIDTH / 2}px ${WINDOW_Y + 8}px` }}
       />
 
-      {/* 脚 */}
-      <rect
-        x={CABINET_X + 25}
-        y={CABINET_TOP + CABINET_HEIGHT - 4}
-        width={20}
-        height={14}
-        rx={RADIUS.sm}
-        fill={MACHINE_BODY_DARK_COLOR}
-        stroke={MACHINE_BODY.edge}
-        strokeWidth={1.5}
-      />
-      <rect
-        x={CABINET_X + CABINET_WIDTH - 45}
-        y={CABINET_TOP + CABINET_HEIGHT - 4}
-        width={20}
-        height={14}
-        rx={RADIUS.sm}
-        fill={MACHINE_BODY_DARK_COLOR}
-        stroke={MACHINE_BODY.edge}
-        strokeWidth={1.5}
-      />
+      {/* 脚（小さく丸いポップな見た目に。てっぺんに小さなハイライトを入れる） */}
+      {[CABINET_X + 22, CABINET_X + CABINET_WIDTH - 38].map((legX, i) => (
+        <g key={i}>
+          <rect
+            x={legX}
+            y={CABINET_TOP + CABINET_HEIGHT - 3}
+            width={16}
+            height={11}
+            rx={5.5}
+            fill={MACHINE_BODY_DARK_COLOR}
+            stroke={MACHINE_BODY.edge}
+            strokeWidth={1.5}
+          />
+          <ellipse cx={legX + 5} cy={CABINET_TOP + CABINET_HEIGHT + 1} rx={2.6} ry={1.6} fill="rgba(255, 255, 255, 0.35)" />
+        </g>
+      ))}
     </svg>
   );
 }
