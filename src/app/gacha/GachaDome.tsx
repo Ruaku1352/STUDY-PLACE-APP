@@ -120,25 +120,38 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
           ejectingRef.current = true;
           Matter.World.remove(engine.world, gate);
 
+          // ゲートを抜けた時点でチェック対象を1個確定させ、以降は
+          // 「そのカプセルが実際に排出口（WINDOW_LANDED_Y）へ到達するまで」待つ。
+          // これを飛ばして早期にresolveすると、演出上は排出済み扱いになるのに
+          // ボールがまだシュートの途中…という見た目のズレが起こりうるため。
+          let chosenId: number | null = null;
+
           const check = () => {
             const capsules = Matter.Composite.allBodies(engine.world).filter((b) => b.label === CAPSULE_LABEL);
-            const passed = capsules.filter((b) => b.position.y > GATE_Y + 2);
-            if (passed.length === 0) return;
 
-            // ゲートを即座に閉じ、以降の抜け出しを止める
-            Matter.World.add(engine.world, gate);
+            if (chosenId === null) {
+              const passed = capsules.filter((b) => b.position.y > GATE_Y + 2);
+              if (passed.length === 0) return;
 
-            const [chosen, ...extras] = passed;
-            // ごく稀に複数抜けても、選ばれた1個以外はドーム内へ戻す（排出は必ず1個）
-            for (const extra of extras) {
-              Matter.Body.setPosition(extra, { x: DOME_CENTER_X, y: DOME_CENTER_Y - DOME_RADIUS_Y * 0.3 });
-              Matter.Body.setVelocity(extra, { x: 0, y: 0 });
+              // ゲートを即座に閉じ、以降の抜け出しを止める
+              Matter.World.add(engine.world, gate);
+
+              const [chosen, ...extras] = passed;
+              // ごく稀に複数抜けても、選ばれた1個以外はドーム内へ戻す（排出は必ず1個）
+              for (const extra of extras) {
+                Matter.Body.setPosition(extra, { x: DOME_CENTER_X, y: DOME_CENTER_Y - DOME_RADIUS_Y * 0.3 });
+                Matter.Body.setVelocity(extra, { x: 0, y: 0 });
+              }
+              chosenId = chosen.id;
             }
+
+            const chosenBody = capsules.find((b) => b.id === chosenId);
+            if (!chosenBody || chosenBody.position.y < WINDOW_LANDED_Y) return;
 
             Matter.Events.off(engine, "afterUpdate", check);
             pendingEjectCheckRef.current = null;
             ejectingRef.current = false;
-            resolve(capsuleColorById.current.get(chosen.id) ?? { top: "#888888", bottom: "#555555" });
+            resolve(capsuleColorById.current.get(chosenId) ?? { top: "#888888", bottom: "#555555" });
           };
           pendingEjectCheckRef.current = check;
           Matter.Events.on(engine, "afterUpdate", check);

@@ -15,7 +15,9 @@ type CapsuleVisualStage = "docked" | "risen";
 
 const COIN_FLIGHT_MS = 600;
 const KNOB_TURN_MS = 1200;
-const EJECT_MS = 800;
+// 排出は物理挙動（GachaDome.eject）が実際に排出口へ着地するまで待って進める。
+// この値は物理が万一収束しない場合の保険（フォールバック）としてのみ使う。
+const EJECT_FALLBACK_MS = 2500;
 const OPEN_MS = 500;
 const RISE_DELAY_MS = 30;
 
@@ -83,13 +85,24 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
 
     if (stage === "ejecting") {
       let active = true;
+      let advanced = false;
+      const advanceToBlackout = () => {
+        if (!active || advanced) return;
+        advanced = true;
+        setStage("blackout");
+      };
+
       domeRef.current?.eject().then((color) => {
-        if (active) setCapsuleColor(color);
+        if (!active) return;
+        setCapsuleColor(color);
+        // カプセルが実際に排出口へ着地してから暗転演出へ進む
+        advanceToBlackout();
       });
-      const t = setTimeout(() => setStage("blackout"), EJECT_MS);
+      // 物理挙動が万一収束しない場合のみ発動する保険のフォールバック
+      const fallbackTimer = setTimeout(advanceToBlackout, EJECT_FALLBACK_MS);
       return () => {
         active = false;
-        clearTimeout(t);
+        clearTimeout(fallbackTimer);
       };
     }
 

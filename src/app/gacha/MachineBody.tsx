@@ -28,9 +28,8 @@ import {
   KNOB_CX,
   KNOB_CY,
   KNOB_R,
-  LID_HEIGHT,
-  LID_WIDTH,
-  LID_Y,
+  LID_BAND_HEIGHT,
+  LID_CUT_Y,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   WINDOW_HEIGHT,
@@ -39,6 +38,20 @@ import {
   WINDOW_X,
   WINDOW_Y,
 } from "./physics";
+
+/**
+ * 上部を高さflatYで水平に切り落とした楕円の輪郭パスを返す。
+ * 蓋（横から見た平らな上面）と楕円（ドームの側面）を継ぎ目なく1つの輪郭として繋げるために使う。
+ * flatYの位置でのx方向の交点をそのまま直線の両端に使うため、直線と弧が同じ点でつながる。
+ */
+function flatTopEllipsePath(cx: number, cy: number, rx: number, ry: number, flatY: number): string {
+  const sinT = Math.max(-1, Math.min(1, (flatY - cy) / ry));
+  const cosT = Math.sqrt(Math.max(0, 1 - sinT * sinT));
+  const halfWidth = rx * cosT;
+  const leftX = cx - halfWidth;
+  const rightX = cx + halfWidth;
+  return `M ${leftX} ${flatY} L ${rightX} ${flatY} A ${rx} ${ry} 0 1 1 ${leftX} ${flatY} Z`;
+}
 
 /**
  * ドーム背景・排出口窓の暗い内側など、Matter.js Canvasの「後ろ」に置くレイヤー。
@@ -79,6 +92,10 @@ export function MachineFrontLayer({
   const maskId = useId();
   const glassGradId = useId();
 
+  // 蓋（帯）の幅は、ドーム外周の楕円をLID_CUT_Yで切った幅に合わせ、継ぎ目なく繋がって見えるようにする
+  const lidSinT = Math.max(-1, Math.min(1, (LID_CUT_Y - DOME_CENTER_Y) / DOME_RADIUS_Y));
+  const lidBandHalfWidth = DOME_RADIUS_X * Math.sqrt(Math.max(0, 1 - lidSinT * lidSinT));
+
   return (
     <svg
       viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
@@ -117,41 +134,36 @@ export function MachineFrontLayer({
         opacity={0.5}
       />
 
-      {/* ドームのガラス表現（台に合わせて楕円形に）: 筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
-      <ellipse cx={DOME_CENTER_X} cy={DOME_CENTER_Y} rx={DOME_RADIUS_X - 4} ry={DOME_RADIUS_Y - 4} fill={`url(#${glassGradId})`} />
-      <ellipse
-        cx={DOME_CENTER_X}
-        cy={DOME_CENTER_Y}
-        rx={DOME_RADIUS_X}
-        ry={DOME_RADIUS_Y}
+      {/* ドームのガラス表現（台に合わせて楕円形に、上部は蓋の高さぶん平らに切って蓋と一体化させる）:
+          筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
+      <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4, DOME_RADIUS_Y - 4, LID_CUT_Y)} fill={`url(#${glassGradId})`} />
+      <path
+        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X, DOME_RADIUS_Y, LID_CUT_Y)}
         fill="none"
         stroke={MACHINE_BODY_DARK_COLOR}
         strokeWidth={11}
+        strokeLinejoin="round"
       />
-      <ellipse
-        cx={DOME_CENTER_X}
-        cy={DOME_CENTER_Y}
-        rx={DOME_RADIUS_X - 7}
-        ry={DOME_RADIUS_Y - 7}
+      <path
+        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 7, DOME_RADIUS_Y - 7, LID_CUT_Y)}
         fill="none"
         stroke="rgba(255, 255, 255, 0.4)"
         strokeWidth={2}
+        strokeLinejoin="round"
       />
-      <ellipse
-        cx={DOME_CENTER_X}
-        cy={DOME_CENTER_Y}
-        rx={DOME_RADIUS_X - 4.5}
-        ry={DOME_RADIUS_Y - 4.5}
+      <path
+        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4.5, DOME_RADIUS_Y - 4.5, LID_CUT_Y)}
         fill="none"
         stroke={MACHINE_BODY_COLOR}
         strokeWidth={3}
+        strokeLinejoin="round"
         opacity={0.9}
       />
 
       {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
       <path
-        d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.66}
-            A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.1} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.95}`}
+        d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
+            A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.05} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.78}`}
         fill="none"
         stroke={DOME_GLASS_HIGHLIGHT}
         strokeWidth={12}
@@ -159,35 +171,56 @@ export function MachineFrontLayer({
       />
       <ellipse
         cx={DOME_CENTER_X - DOME_RADIUS_X * 0.42}
-        cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
+        cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.32}
         rx={7}
         ry={11}
         fill="rgba(255, 255, 255, 0.55)"
-        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS_X * 0.42} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5})`}
+        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS_X * 0.42} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.32})`}
       />
 
-      {/* ドーム上部の銀色の蓋（横に平たいキャップ） */}
-      <ellipse
-        cx={DOME_CENTER_X}
-        cy={LID_Y + LID_HEIGHT / 2}
-        rx={LID_WIDTH / 2}
-        ry={LID_HEIGHT / 2}
-        fill={LID_SILVER_DARK}
-      />
-      <ellipse
-        cx={DOME_CENTER_X}
-        cy={LID_Y + LID_HEIGHT / 2 - 3}
-        rx={LID_WIDTH / 2 - 4}
-        ry={LID_HEIGHT / 2 - 4}
+      {/* ドーム上部の銀色の蓋。瓶の蓋を横から見た形（上面は描かず、側面の帯として表現する）。
+          帯の幅は、ドーム楕円をLID_CUT_Yで切った幅にぴったり合わせ、継ぎ目なく繋がって見えるようにする。 */}
+      <rect
+        x={DOME_CENTER_X - lidBandHalfWidth}
+        y={LID_CUT_Y - LID_BAND_HEIGHT}
+        width={lidBandHalfWidth * 2}
+        height={LID_BAND_HEIGHT + 4}
+        rx={6}
         fill={LID_SILVER}
       />
-      <ellipse
-        cx={DOME_CENTER_X - LID_WIDTH * 0.18}
-        cy={LID_Y + LID_HEIGHT * 0.32}
-        rx={LID_WIDTH * 0.22}
-        ry={LID_HEIGHT * 0.14}
+      <rect
+        x={DOME_CENTER_X - lidBandHalfWidth}
+        y={LID_CUT_Y - LID_BAND_HEIGHT}
+        width={lidBandHalfWidth * 2}
+        height={7}
+        rx={6}
         fill={LID_SILVER_HIGHLIGHT}
       />
+      <rect
+        x={DOME_CENTER_X - lidBandHalfWidth}
+        y={LID_CUT_Y - 5}
+        width={lidBandHalfWidth * 2}
+        height={5}
+        fill={LID_SILVER_DARK}
+        opacity={0.7}
+      />
+      {/* 瓶の蓋らしいクリンプ（縁のギザギザ）を側面の縦線で表現 */}
+      {Array.from({ length: 9 }, (_, i) => {
+        const t = (i + 1) / 10;
+        const x = DOME_CENTER_X - lidBandHalfWidth + lidBandHalfWidth * 2 * t;
+        return (
+          <line
+            key={i}
+            x1={x}
+            y1={LID_CUT_Y - LID_BAND_HEIGHT + 6}
+            x2={x}
+            y2={LID_CUT_Y - 2}
+            stroke={LID_SILVER_DARK}
+            strokeWidth={1.5}
+            opacity={0.45}
+          />
+        );
+      })}
 
       {/* 筐体本体（排出口窓は穴あき） */}
       <rect

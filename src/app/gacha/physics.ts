@@ -26,10 +26,12 @@ export const GATE_WIDTH = 70;
 export const GATE_HEIGHT = 8;
 export const GATE_Y = DOME_CENTER_Y + DOME_RADIUS_Y - 6;
 
-// ドーム上部の銀色の蓋（横に平たいキャップ）
-export const LID_WIDTH = 128;
-export const LID_HEIGHT = 26;
-export const LID_Y = DOME_CENTER_Y - DOME_RADIUS_Y - LID_HEIGHT * 0.3;
+// ドーム上部の銀色の蓋（瓶の蓋を横から見た形）。
+// ドームの楕円の上部を蓋の高さぶんだけ「平らに切った」形にし、蓋と一体化させる
+// （蓋の両端がそのまま楕円の側面につながるので、継ぎ目のない1つの輪郭になる）。
+export const LID_CUT_RATIO = 0.78; // 楕円の上端からどのくらいの高さで切るか（1に近いほど頂点に近い）
+export const LID_CUT_Y = DOME_CENTER_Y - DOME_RADIUS_Y * LID_CUT_RATIO;
+export const LID_BAND_HEIGHT = 24; // 蓋自体の高さ（切り口から上に伸びる分）
 
 // 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）。カプセル直径(52)が
 // 余裕を持って通れるよう、ゲートより広めに取る。
