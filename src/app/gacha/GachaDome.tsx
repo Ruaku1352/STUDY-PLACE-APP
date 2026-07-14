@@ -2,7 +2,7 @@
 
 import Matter from "matter-js";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { randomCapsuleColorPair, type CapsuleColorPair } from "./colors";
+import { outlineWidth, randomCapsuleColorPair, type CapsuleColorPair } from "./colors";
 import {
   CAPSULE_COUNT,
   CAPSULE_RADIUS,
@@ -33,6 +33,32 @@ import {
 } from "./physics";
 
 const CAPSULE_LABEL = "capsule";
+
+/** カプセルの塗り分けパターン。2色ハーフだけでなく数種類混在させて見た目に変化をつける。 */
+type CapsulePattern = "horizontal" | "vertical" | "quad";
+const CAPSULE_PATTERNS: CapsulePattern[] = ["horizontal", "vertical", "quad"];
+
+interface CapsuleVisual extends CapsuleColorPair {
+  pattern: CapsulePattern;
+  /** 0(奥)〜1(手前)の疑似奥行き。描画順と明暗の両方に使い、重なりの立体感を出す。 */
+  depth: number;
+}
+
+function randomCapsuleVisual(): CapsuleVisual {
+  const { top, bottom } = randomCapsuleColorPair();
+  const pattern = CAPSULE_PATTERNS[Math.floor(Math.random() * CAPSULE_PATTERNS.length)];
+  return { top, bottom, pattern, depth: Math.random() };
+}
+
+/** #rrggbb形式の色を明度factor倍にする（奥にあるカプセルを少し暗くするため）。 */
+function shadeColor(hex: string, factor: number): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return hex;
+  const r = Math.round(parseInt(m[1], 16) * factor);
+  const g = Math.round(parseInt(m[2], 16) * factor);
+  const b = Math.round(parseInt(m[3], 16) * factor);
+  return `rgb(${r}, ${g}, ${b})`;
+}
 
 export interface GachaDomeHandle {
   /** ノブ回転と同時に呼ぶ。ドーム内のカプセル全体をかき混ぜる。 */
@@ -91,7 +117,7 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const gateRef = useRef<Matter.Body | null>(null);
-  const capsuleColorById = useRef<Map<number, CapsuleColorPair>>(new Map());
+  const capsuleVisualById = useRef<Map<number, CapsuleVisual>>(new Map());
   const ejectingRef = useRef(false);
   const pendingEjectCheckRef = useRef<(() => void) | null>(null);
 
@@ -151,7 +177,8 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
             Matter.Events.off(engine, "afterUpdate", check);
             pendingEjectCheckRef.current = null;
             ejectingRef.current = false;
-            resolve(capsuleColorById.current.get(chosenId) ?? { top: "#888888", bottom: "#555555" });
+            const visual = capsuleVisualById.current.get(chosenId);
+            resolve(visual ? { top: visual.top, bottom: visual.bottom } : { top: "#888888", bottom: "#555555" });
           };
           pendingEjectCheckRef.current = check;
           Matter.Events.on(engine, "afterUpdate", check);
@@ -164,7 +191,7 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const colorMap = capsuleColorById.current;
+    const visualMap = capsuleVisualById.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -209,11 +236,11 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
     const maxSpawnRadius = domeInnerRadius - CAPSULE_RADIUS - 2;
     const capsules: Matter.Body[] = [];
     for (let i = 0; i < CAPSULE_COUNT; i++) {
-      const angleSpread = Math.PI * 0.7;
-      const angle = Math.PI * 1.15 + Math.random() * angleSpread;
-      const dist = Math.random() * (domeInnerRadius - CAPSULE_RADIUS * 2);
+      const angleSpread = Math.PI * 0.9;
+      const angle = Math.PI * 1.05 + Math.random() * angleSpread;
+      const dist = Math.random() * (domeInnerRadius - CAPSULE_RADIUS * 1.6);
       let ox = Math.cos(angle) * dist + (Math.random() * 20 - 10);
-      let oy = Math.sin(angle) * dist * 0.5 - 20 - i * 2;
+      let oy = Math.sin(angle) * dist * 0.5 - 10 - i * 3;
       const offsetMagnitude = Math.hypot(ox, oy);
       if (offsetMagnitude > maxSpawnRadius) {
         const scale = maxSpawnRadius / offsetMagnitude;
@@ -226,7 +253,7 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
         frictionAir: FRICTION_AIR,
         label: CAPSULE_LABEL,
       });
-      colorMap.set(body.id, randomCapsuleColorPair());
+      visualMap.set(body.id, randomCapsuleVisual());
       capsules.push(body);
     }
 
@@ -240,8 +267,9 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
     });
     Matter.World.add(engine.world, mouseConstraint);
 
-    // マウント時点で既に積み重なって見えるよう、非表示のまま少し進めておく
-    for (let i = 0; i < 90; i++) {
+    // マウント時点で既に容器下半分に積み重なって見えるよう、非表示のまま少し多めに進めておく
+    // （カプセル数が増えた分、安定して積もるまでの時間も長くとる）。
+    for (let i = 0; i < 160; i++) {
       Matter.Engine.update(engine, 1000 / 60);
     }
 
@@ -251,45 +279,95 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
     function draw() {
       ctx!.clearRect(0, 0, STAGE_WIDTH, CANVAS_HEIGHT);
       const bodies = Matter.Composite.allBodies(engine.world).filter((b) => b.label === CAPSULE_LABEL);
-      for (const body of bodies) {
-        const colors = colorMap.get(body.id);
-        if (!colors) continue;
+
+      // depthの昇順（奥→手前）に描画することで、手前のカプセルが奥のカプセルに重なって見えるようにする。
+      const withVisual = bodies
+        .map((body) => ({ body, visual: visualMap.get(body.id) }))
+        .filter((entry): entry is { body: Matter.Body; visual: CapsuleVisual } => Boolean(entry.visual))
+        .sort((a, b) => a.visual.depth - b.visual.depth);
+
+      for (const { body, visual } of withVisual) {
         const { x, y } = body.position;
         const r = CAPSULE_RADIUS;
+        // 奥(depth=0)ほど暗く、手前(depth=1)ほど明るく見せて重なりの立体感を出す
+        const shade = 0.72 + 0.28 * visual.depth;
+        const topColor = shadeColor(visual.top, shade);
+        const bottomColor = shadeColor(visual.bottom, shade);
 
         ctx!.save();
         ctx!.translate(x, y);
         ctx!.rotate(body.angle);
 
         ctx!.beginPath();
-        ctx!.arc(0, 0, r, Math.PI, Math.PI * 2, false);
-        ctx!.closePath();
-        ctx!.fillStyle = colors.top;
-        ctx!.fill();
+        if (visual.pattern === "horizontal") {
+          ctx!.arc(0, 0, r, Math.PI, Math.PI * 2, false);
+          ctx!.closePath();
+          ctx!.fillStyle = topColor;
+          ctx!.fill();
+          ctx!.beginPath();
+          ctx!.arc(0, 0, r, 0, Math.PI, false);
+          ctx!.closePath();
+          ctx!.fillStyle = bottomColor;
+          ctx!.fill();
+          ctx!.beginPath();
+          ctx!.moveTo(-r, 0);
+          ctx!.lineTo(r, 0);
+          ctx!.lineWidth = Math.max(1.5, r * 0.06);
+          ctx!.strokeStyle = "rgba(0, 0, 0, 0.28)";
+          ctx!.stroke();
+        } else if (visual.pattern === "vertical") {
+          ctx!.arc(0, 0, r, Math.PI * 0.5, Math.PI * 1.5, false);
+          ctx!.closePath();
+          ctx!.fillStyle = topColor;
+          ctx!.fill();
+          ctx!.beginPath();
+          ctx!.arc(0, 0, r, -Math.PI * 0.5, Math.PI * 0.5, false);
+          ctx!.closePath();
+          ctx!.fillStyle = bottomColor;
+          ctx!.fill();
+          ctx!.beginPath();
+          ctx!.moveTo(0, -r);
+          ctx!.lineTo(0, r);
+          ctx!.lineWidth = Math.max(1.5, r * 0.06);
+          ctx!.strokeStyle = "rgba(0, 0, 0, 0.28)";
+          ctx!.stroke();
+        } else {
+          // 4分割（市松模様）: 左上・右下をtop色、右上・左下をbottom色にする
+          const quadrants: Array<[number, number, string]> = [
+            [Math.PI, Math.PI * 1.5, topColor],
+            [Math.PI * 1.5, Math.PI * 2, bottomColor],
+            [0, Math.PI * 0.5, topColor],
+            [Math.PI * 0.5, Math.PI, bottomColor],
+          ];
+          for (const [start, end, color] of quadrants) {
+            ctx!.beginPath();
+            ctx!.moveTo(0, 0);
+            ctx!.arc(0, 0, r, start, end, false);
+            ctx!.closePath();
+            ctx!.fillStyle = color;
+            ctx!.fill();
+          }
+          ctx!.beginPath();
+          ctx!.moveTo(-r, 0);
+          ctx!.lineTo(r, 0);
+          ctx!.moveTo(0, -r);
+          ctx!.lineTo(0, r);
+          ctx!.lineWidth = Math.max(1.5, r * 0.055);
+          ctx!.strokeStyle = "rgba(0, 0, 0, 0.28)";
+          ctx!.stroke();
+        }
 
-        ctx!.beginPath();
-        ctx!.arc(0, 0, r, 0, Math.PI, false);
-        ctx!.closePath();
-        ctx!.fillStyle = colors.bottom;
-        ctx!.fill();
-
-        // 上下ハーフの継ぎ目（実物のカプセルトイらしい見た目に）
-        ctx!.beginPath();
-        ctx!.moveTo(-r, 0);
-        ctx!.lineTo(r, 0);
-        ctx!.lineWidth = Math.max(1.5, r * 0.06);
-        ctx!.strokeStyle = "rgba(0, 0, 0, 0.28)";
-        ctx!.stroke();
-
+        // 太い縁取り（手描き風のポップなタッチに合わせ、要素サイズの比率で統一）
         ctx!.beginPath();
         ctx!.arc(0, 0, r, 0, Math.PI * 2);
-        ctx!.lineWidth = Math.max(2, r * 0.09);
-        ctx!.strokeStyle = "rgba(0, 0, 0, 0.32)";
+        ctx!.lineWidth = outlineWidth(r * 2, 0.075);
+        ctx!.strokeStyle = "rgba(0, 0, 0, 0.34)";
         ctx!.stroke();
 
+        // 白の光沢ハイライト
         ctx!.beginPath();
         ctx!.ellipse(-r * 0.35, -r * 0.4, r * 0.28, r * 0.16, -0.5, 0, Math.PI * 2);
-        ctx!.fillStyle = "rgba(255, 255, 255, 0.6)";
+        ctx!.fillStyle = "rgba(255, 255, 255, 0.65)";
         ctx!.fill();
 
         ctx!.restore();
@@ -310,7 +388,7 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
       engineRef.current = null;
       gateRef.current = null;
       ejectingRef.current = false;
-      colorMap.clear();
+      visualMap.clear();
     };
   }, []);
 

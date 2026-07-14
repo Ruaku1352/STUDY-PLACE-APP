@@ -15,8 +15,8 @@ export const DOME_CENTER_Y = 158;
 export const DOME_RADIUS_X = 145;
 export const DOME_RADIUS_Y = 148;
 export const DOME_WALL_SEGMENTS = 22; // 楕円を近似する静的セグメント数
-// カプセル半径(26)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
-export const DOME_WALL_THICKNESS = 28;
+// カプセル半径(28)より薄いとまれにトンネリングしうるため、カプセル半径より少し厚めにする
+export const DOME_WALL_THICKNESS = 32;
 
 // ドーム最下部中央の壁の隙間（ゲート用）の半幅。DOME_RADIUS_Xが変わっても
 // ゲート/シュートの幅より確実に広い隙間になるよう、角度ではなく実寸で管理する。
@@ -41,7 +41,7 @@ export const CHUTE_TOP_Y = GATE_Y + 4;
 export const CHUTE_BOTTOM_Y = 380;
 export const CHUTE_TOP_HALF_WIDTH = 38;
 export const CHUTE_BOTTOM_HALF_WIDTH = 46;
-export const CHUTE_WALL_THICKNESS = 28;
+export const CHUTE_WALL_THICKNESS = 32;
 
 // 排出完了とみなすY座標（このYを超えたカプセルは物理的に排出口へ着地したとみなす）
 export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
@@ -49,9 +49,9 @@ export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
 // Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
 export const CANVAS_HEIGHT = 460;
 
-// カプセル（メダルと同じ大きさ感になるよう大きめに設定）
-export const CAPSULE_RADIUS = 26;
-export const CAPSULE_COUNT = 12;
+// カプセル（容器下半分に密集して積もって見えるよう、大きく・数を増やしている）
+export const CAPSULE_RADIUS = 28;
+export const CAPSULE_COUNT = 20;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
 // 「余白の少ない、みっちりしたマシン」にするため、以前(250)より大きく高さを圧縮している。
