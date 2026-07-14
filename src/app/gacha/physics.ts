@@ -13,20 +13,21 @@ export const DOME_CENTER_X = STAGE_WIDTH / 2;
 export const DOME_CENTER_Y = 150;
 export const DOME_RADIUS = 108;
 export const DOME_WALL_SEGMENTS = 22; // 円を近似する静的セグメント数
-// カプセル直径(22)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
-export const DOME_WALL_THICKNESS = 14;
+// カプセル半径(26)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
+export const DOME_WALL_THICKNESS = 28;
 
 // 排出ゲート（ドーム最下部の堰き止め）。壁の隙間を確実に覆えるよう少し広めに取る。
-export const GATE_WIDTH = 60;
+export const GATE_WIDTH = 70;
 export const GATE_HEIGHT = 8;
 export const GATE_Y = DOME_CENTER_Y + DOME_RADIUS - 6;
 
-// 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）
+// 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）。カプセル直径(52)が
+// 余裕を持って通れるよう、ゲートより広めに取る。
 export const CHUTE_TOP_Y = GATE_Y + 4;
 export const CHUTE_BOTTOM_Y = 372;
-export const CHUTE_TOP_HALF_WIDTH = 26;
-export const CHUTE_BOTTOM_HALF_WIDTH = 34;
-export const CHUTE_WALL_THICKNESS = 14;
+export const CHUTE_TOP_HALF_WIDTH = 38;
+export const CHUTE_BOTTOM_HALF_WIDTH = 46;
+export const CHUTE_WALL_THICKNESS = 28;
 
 // 排出完了とみなすY座標（このYを超えたカプセルは物理的に排出口へ着地したとみなす）
 export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
@@ -34,9 +35,9 @@ export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
 // Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
 export const CANVAS_HEIGHT = 420;
 
-// カプセル
-export const CAPSULE_RADIUS = 11;
-export const CAPSULE_COUNT = 24;
+// カプセル（メダルと同じ大きさ感になるよう大きめに設定）
+export const CAPSULE_RADIUS = 26;
+export const CAPSULE_COUNT = 12;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
 export const CABINET_TOP = 258;

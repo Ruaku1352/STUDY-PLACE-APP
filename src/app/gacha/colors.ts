@@ -27,7 +27,6 @@ export function randomCapsuleColorPair(randomFn: () => number = Math.random): Ca
 // 筐体・ドーム周りの固定配色（テーマのaccent/warning系に準拠）
 export const MACHINE_BODY_COLOR = "#4338ca"; // 筐体本体（濃いaccent）
 export const MACHINE_BODY_DARK_COLOR = "#3730a3"; // 影・立体感
-export const DOME_RIM_COLOR = "#e0e0e5"; // ドーム縁取り（--borderに準拠、太め）
 export const DOME_GLASS_HIGHLIGHT = "rgba(255, 255, 255, 0.55)";
 export const KNOB_COLOR = "#fbbf24"; // 金色ノブ（--warning-border系の暖色）
 export const KNOB_GROOVE_COLOR = "#b45309";

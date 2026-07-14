@@ -58,9 +58,10 @@ function createDomeWalls(): Matter.Body[] {
   const segLen = (2 * Math.PI * DOME_RADIUS) / DOME_WALL_SEGMENTS;
   for (let i = 0; i < DOME_WALL_SEGMENTS; i++) {
     const angle = i * segAngle;
-    // ドーム最下部中央はゲート用に壁を作らない（出口の隙間）
+    // ドーム最下部中央はゲート用に壁を作らない（出口の隙間）。
+    // カプセルが大きくなった分、ゲート/シュートの幅より確実に広く隙間を空ける。
     const normalized = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const isBottomGap = normalized > Math.PI * 0.4 && normalized < Math.PI * 0.6;
+    const isBottomGap = normalized > Math.PI * 0.36 && normalized < Math.PI * 0.64;
     if (isBottomGap) continue;
 
     const x = DOME_CENTER_X + Math.cos(angle) * DOME_RADIUS;
@@ -249,9 +250,17 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
         ctx!.fillStyle = colors.bottom;
         ctx!.fill();
 
+        // 上下ハーフの継ぎ目（実物のカプセルトイらしい見た目に）
+        ctx!.beginPath();
+        ctx!.moveTo(-r, 0);
+        ctx!.lineTo(r, 0);
+        ctx!.lineWidth = Math.max(1.5, r * 0.06);
+        ctx!.strokeStyle = "rgba(0, 0, 0, 0.28)";
+        ctx!.stroke();
+
         ctx!.beginPath();
         ctx!.arc(0, 0, r, 0, Math.PI * 2);
-        ctx!.lineWidth = 1.4;
+        ctx!.lineWidth = Math.max(2, r * 0.09);
         ctx!.strokeStyle = "rgba(0, 0, 0, 0.32)";
         ctx!.stroke();
 

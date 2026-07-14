@@ -3,7 +3,6 @@
 import { useId } from "react";
 import {
   DOME_GLASS_HIGHLIGHT,
-  DOME_RIM_COLOR,
   KNOB_COLOR,
   KNOB_GROOVE_COLOR,
   MACHINE_BODY_COLOR,
@@ -68,6 +67,7 @@ export function MachineFrontLayer({
   className?: string;
 }) {
   const maskId = useId();
+  const glassGradId = useId();
 
   return (
     <svg
@@ -81,28 +81,76 @@ export function MachineFrontLayer({
           <rect x={CABINET_X} y={CABINET_TOP} width={CABINET_WIDTH} height={CABINET_HEIGHT} rx={CABINET_RX} fill="white" />
           <rect x={WINDOW_X - 4} y={WINDOW_Y - 4} width={WINDOW_WIDTH + 8} height={WINDOW_HEIGHT + 8} rx={WINDOW_RX} fill="black" />
         </mask>
+        <radialGradient id={glassGradId} cx="32%" cy="26%" r="85%">
+          <stop offset="0%" stopColor="rgba(255, 255, 255, 0.16)" />
+          <stop offset="55%" stopColor="rgba(255, 255, 255, 0.04)" />
+          <stop offset="100%" stopColor="rgba(67, 56, 202, 0.10)" />
+        </radialGradient>
       </defs>
 
-      {/* ドームのガラス表現: 薄い光沢＋太めの縁取り＋ハイライト曲線 */}
-      <circle cx={DOME_CENTER_X} cy={DOME_CENTER_Y} r={DOME_RADIUS} fill="white" opacity={0.05} />
-      <circle cx={DOME_CENTER_X} cy={DOME_CENTER_Y} r={DOME_RADIUS} fill="none" stroke={DOME_RIM_COLOR} strokeWidth={6} />
-      <path
-        d={`M ${DOME_CENTER_X - DOME_RADIUS * 0.55} ${DOME_CENTER_Y - DOME_RADIUS * 0.72}
-            A ${DOME_RADIUS * 0.8} ${DOME_RADIUS * 0.8} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS * 0.15} ${DOME_CENTER_Y - DOME_RADIUS * 0.94}`}
-        fill="none"
-        stroke={DOME_GLASS_HIGHLIGHT}
-        strokeWidth={9}
-        strokeLinecap="round"
+      {/* ドームと筐体をつなぐリング状の土台（筐体と同系色で一体感を出す） */}
+      <rect
+        x={DOME_CENTER_X - 54}
+        y={DOME_CENTER_Y + DOME_RADIUS - 20}
+        width={108}
+        height={34}
+        rx={17}
+        fill={MACHINE_BODY_DARK_COLOR}
+      />
+      <rect
+        x={DOME_CENTER_X - 54}
+        y={DOME_CENTER_Y + DOME_RADIUS - 20}
+        width={108}
+        height={10}
+        rx={5}
+        fill={MACHINE_BODY_COLOR}
+        opacity={0.5}
       />
 
-      {/* ドームと筐体をつなぐリング状の土台 */}
-      <rect
-        x={DOME_CENTER_X - 46}
-        y={DOME_CENTER_Y + DOME_RADIUS - 14}
-        width={92}
-        height={26}
-        rx={13}
-        fill={MACHINE_BODY_DARK_COLOR}
+      {/* ドームのガラス表現: 筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
+      <circle cx={DOME_CENTER_X} cy={DOME_CENTER_Y} r={DOME_RADIUS - 4} fill={`url(#${glassGradId})`} />
+      <circle
+        cx={DOME_CENTER_X}
+        cy={DOME_CENTER_Y}
+        r={DOME_RADIUS}
+        fill="none"
+        stroke={MACHINE_BODY_DARK_COLOR}
+        strokeWidth={11}
+      />
+      <circle
+        cx={DOME_CENTER_X}
+        cy={DOME_CENTER_Y}
+        r={DOME_RADIUS - 7}
+        fill="none"
+        stroke="rgba(255, 255, 255, 0.4)"
+        strokeWidth={2}
+      />
+      <circle
+        cx={DOME_CENTER_X}
+        cy={DOME_CENTER_Y}
+        r={DOME_RADIUS - 4.5}
+        fill="none"
+        stroke={MACHINE_BODY_COLOR}
+        strokeWidth={3}
+        opacity={0.9}
+      />
+
+      {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
+      <path
+        d={`M ${DOME_CENTER_X - DOME_RADIUS * 0.6} ${DOME_CENTER_Y - DOME_RADIUS * 0.66}
+            A ${DOME_RADIUS * 0.82} ${DOME_RADIUS * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS * 0.1} ${DOME_CENTER_Y - DOME_RADIUS * 0.95}`}
+        fill="none"
+        stroke={DOME_GLASS_HIGHLIGHT}
+        strokeWidth={12}
+        strokeLinecap="round"
+      />
+      <ellipse
+        cx={DOME_CENTER_X - DOME_RADIUS * 0.42}
+        cy={DOME_CENTER_Y - DOME_RADIUS * 0.5}
+        rx={7}
+        ry={11}
+        fill="rgba(255, 255, 255, 0.55)"
+        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS * 0.42} ${DOME_CENTER_Y - DOME_RADIUS * 0.5})`}
       />
 
       {/* 筐体本体（排出口窓は穴あき） */}
