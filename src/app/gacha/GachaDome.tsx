@@ -139,41 +139,55 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
       eject(): Promise<CapsuleColorPair> {
         return new Promise((resolve) => {
           const engine = engineRef.current;
-          const gate = gateRef.current;
-          if (!engine || !gate || ejectingRef.current) {
+          if (!engine || ejectingRef.current) {
+            resolve({ top: "#888888", bottom: "#555555" });
+            return;
+          }
+          const capsules = Matter.Composite.allBodies(engine.world).filter((b) => b.label === CAPSULE_LABEL);
+          if (capsules.length === 0) {
             resolve({ top: "#888888", bottom: "#555555" });
             return;
           }
           ejectingRef.current = true;
-          Matter.World.remove(engine.world, gate);
 
-          // ゲートを抜けた時点でチェック対象を1個確定させ、以降は
-          // 「そのカプセルが実際に排出口（WINDOW_LANDED_Y）へ到達するまで」待つ。
-          // これを飛ばして早期にresolveすると、演出上は排出済み扱いになるのに
-          // ボールがまだシュートの途中…という見た目のズレが起こりうるため。
-          let chosenId: number | null = null;
+          // ゲートを外して山からの自然な落下だけに頼ると、カプセル同士が
+          // ゲート付近でアーチ状に支え合って誰も落ちてこないことがある
+          // （粒状体のブリッジ現象）。実機のプッシャー機構と同様、排出する
+          // カプセルを1個選んでシュート入口へ直接送り出し、そこから先は
+          // 通常の物理挙動（落下・バウンド）で排出口まで運ばせる。
+          const chosen = capsules.reduce((closest, b) => {
+            const d = Math.hypot(b.position.x - DOME_CENTER_X, b.position.y - GATE_Y);
+            const dc = Math.hypot(closest.position.x - DOME_CENTER_X, closest.position.y - GATE_Y);
+            return d < dc ? b : closest;
+          });
+          const chosenId = chosen.id;
+          Matter.Body.setPosition(chosen, { x: DOME_CENTER_X, y: CHUTE_TOP_Y + 6 });
+          Matter.Body.setVelocity(chosen, { x: 0, y: 4 });
+          Matter.Body.setAngularVelocity(chosen, 0);
 
+          let frame = 0;
           const check = () => {
-            const capsules = Matter.Composite.allBodies(engine.world).filter((b) => b.label === CAPSULE_LABEL);
-
-            if (chosenId === null) {
-              const passed = capsules.filter((b) => b.position.y > GATE_Y + 2);
-              if (passed.length === 0) return;
-
-              // ゲートを即座に閉じ、以降の抜け出しを止める
-              Matter.World.add(engine.world, gate);
-
-              const [chosen, ...extras] = passed;
-              // ごく稀に複数抜けても、選ばれた1個以外はドーム内へ戻す（排出は必ず1個）
-              for (const extra of extras) {
-                Matter.Body.setPosition(extra, { x: DOME_CENTER_X, y: DOME_CENTER_Y - DOME_RADIUS_Y * 0.3 });
-                Matter.Body.setVelocity(extra, { x: 0, y: 0 });
-              }
-              chosenId = chosen.id;
+            frame++;
+            const chosenBody = Matter.Composite.allBodies(engine.world).find((b) => b.id === chosenId);
+            if (!chosenBody) {
+              Matter.Events.off(engine, "afterUpdate", check);
+              pendingEjectCheckRef.current = null;
+              ejectingRef.current = false;
+              resolve({ top: "#888888", bottom: "#555555" });
+              return;
             }
-
-            const chosenBody = capsules.find((b) => b.id === chosenId);
-            if (!chosenBody || chosenBody.position.y < WINDOW_LANDED_Y) return;
+            // 着地位置には物理的な誤差（拘束の許容誤差など）が数px乗るため、
+            // 少し手前の閾値で「到達」とみなす（ちょうど等号一致を待たない）。
+            if (chosenBody.position.y < WINDOW_LANDED_Y - 3) {
+              // シュートの途中で壁に引っかかって進まなくなることがあるため、軽く後押しする。
+              if (frame % 12 === 0) {
+                Matter.Body.setVelocity(chosenBody, {
+                  x: chosenBody.velocity.x + (DOME_CENTER_X - chosenBody.position.x) * 0.03,
+                  y: Math.max(chosenBody.velocity.y, 4),
+                });
+              }
+              return;
+            }
 
             Matter.Events.off(engine, "afterUpdate", check);
             pendingEjectCheckRef.current = null;
@@ -222,11 +236,15 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
       CHUTE_BOTTOM_Y,
       CHUTE_WALL_THICKNESS,
     );
+    // カプセルが着地して静止した時の中心Yがちょうど WINDOW_LANDED_Y になるよう、
+    // 床の厚み(floorHeight)の半分ぶんだけ床の中心を余分に下げて配置する
+    // （床の上面が WINDOW_LANDED_Y + CAPSULE_RADIUS に来るようにするため）。
+    const windowFloorHeight = 8;
     const windowFloor = Matter.Bodies.rectangle(
       DOME_CENTER_X,
-      WINDOW_LANDED_Y + CAPSULE_RADIUS,
+      WINDOW_LANDED_Y + CAPSULE_RADIUS + windowFloorHeight / 2,
       CHUTE_BOTTOM_HALF_WIDTH * 2,
-      8,
+      windowFloorHeight,
       { isStatic: true, friction: FRICTION, restitution: RESTITUTION * 0.6 },
     );
 
