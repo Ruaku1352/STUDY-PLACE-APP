@@ -43,9 +43,6 @@ export const CHUTE_TOP_HALF_WIDTH = 38;
 export const CHUTE_BOTTOM_HALF_WIDTH = 46;
 export const CHUTE_WALL_THICKNESS = 32;
 
-// 排出完了とみなすY座標（このYを超えたカプセルは物理的に排出口へ着地したとみなす）
-export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
-
 // Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
 export const CANVAS_HEIGHT = 460;
 
@@ -77,6 +74,11 @@ export const WINDOW_Y = 385;
 export const WINDOW_WIDTH = 110;
 export const WINDOW_HEIGHT = 55;
 export const WINDOW_RX = 10;
+
+// 排出完了とみなすY座標（このYを超えたカプセルは物理的に排出口へ着地したとみなす）。
+// 排出口窓(WINDOW_Y〜+HEIGHT)の可視領域の縦中央に合わせる。シュート側の座標(CHUTE_BOTTOM_Y等)から
+// 独立に決めると、窓の外側（筐体の陰）に着地してカプセルの上半分しか見えなくなってしまうため。
+export const WINDOW_LANDED_Y = WINDOW_Y + WINDOW_HEIGHT / 2;
 
 export const KNOB_CX = STAGE_WIDTH / 2;
 export const KNOB_CY = 340;
