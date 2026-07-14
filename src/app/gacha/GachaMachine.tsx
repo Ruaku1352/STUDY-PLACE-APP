@@ -192,9 +192,9 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
       </div>
 
       <div ref={stageContainerRef} className={`gacha-stage${showBlackout ? " gacha-stage-sinking" : ""}`}>
-        <MachineBackLayer />
+        <MachineBackLayer className="gacha-back-layer" />
         <GachaDome ref={domeRef} className="gacha-dome-canvas" />
-        <MachineFrontLayer knobRotating={knobRotating} ejecting={ejecting} />
+        <MachineFrontLayer knobRotating={knobRotating} ejecting={ejecting} className="gacha-front-layer" />
 
         {stage === "idle" && (
           <button type="button" className="gacha-medal-dock" style={{ left: `${MEDAL_DOCK_PERCENT.x}%`, top: `${MEDAL_DOCK_PERCENT.y}%` }} onClick={handleStart} aria-label="メダルを投入する">

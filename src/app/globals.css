@@ -468,11 +468,22 @@ button.button-danger {
   opacity: 0.35;
 }
 
+/* z-index:auto の要素はexplicit z-indexの要素より必ず後ろに描画されるため、
+   奥から順にback(0)→canvas(1)→front(2)と明示し、カプセルの物理演算が
+   筐体の不透明な塗り（排出口窓のマスク穴以外）できちんと隠れるようにする。 */
+.gacha-back-layer {
+  z-index: 0;
+}
+
 .gacha-dome-canvas {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 1;
+}
+
+.gacha-front-layer {
+  z-index: 2;
 }
 
 .gacha-medal-dock,

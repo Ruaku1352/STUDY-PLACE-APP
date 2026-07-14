@@ -12,7 +12,7 @@ export const STAGE_HEIGHT = 520;
 export const DOME_CENTER_X = STAGE_WIDTH / 2;
 export const DOME_CENTER_Y = 150;
 export const DOME_RADIUS_X = 138;
-export const DOME_RADIUS_Y = 86;
+export const DOME_RADIUS_Y = 104;
 export const DOME_WALL_SEGMENTS = 22; // 楕円を近似する静的セグメント数
 // カプセル半径(26)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
 export const DOME_WALL_THICKNESS = 28;
