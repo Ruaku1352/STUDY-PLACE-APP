@@ -24,18 +24,24 @@ export const CAPSULE_PALETTE: PastelTriad[] = [
 /** 後方互換用（カプセルのベース色のみの配列）。 */
 export const CAPSULE_HUES = CAPSULE_PALETTE.map((c) => c.base);
 
+/** カプセルの白色ハーフ（ビビッドな色と組み合わせ、色同士の重なりで灰色っぽく見えるのを防ぐ）。 */
+export const CAPSULE_WHITE = "#fbfbf7";
+
 export interface CapsuleColorPair {
   top: string;
   bottom: string;
 }
 
-/** 上下2色ハーフの組み合わせをランダムに決める。同じ色2つは避け、毎回2色になるようにする。 */
+/**
+ * 上下2色ハーフの組み合わせをランダムに決める。
+ * ビビッドな色同士を組み合わせると重なった際に濁って灰色っぽく見えてしまうため、
+ * 必ず「白に近い色」と「ビビッドな色」の組み合わせにする（どちらが上/下かはランダム）。
+ */
 export function randomCapsuleColorPair(randomFn: () => number = Math.random): CapsuleColorPair {
   const maxIndex = CAPSULE_HUES.length - 1;
   const i = Math.min(Math.floor(randomFn() * CAPSULE_HUES.length), maxIndex);
-  let j = Math.min(Math.floor(randomFn() * CAPSULE_HUES.length), maxIndex);
-  if (j === i) j = (j + 1) % CAPSULE_HUES.length;
-  return { top: CAPSULE_HUES[i], bottom: CAPSULE_HUES[j] };
+  const accent = CAPSULE_HUES[i];
+  return randomFn() < 0.5 ? { top: accent, bottom: CAPSULE_WHITE } : { top: CAPSULE_WHITE, bottom: accent };
 }
 
 // 筐体（パステルなインディゴ）
