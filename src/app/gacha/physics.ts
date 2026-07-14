@@ -15,7 +15,7 @@ export const DOME_CENTER_Y = 158;
 export const DOME_RADIUS_X = 145;
 export const DOME_RADIUS_Y = 148;
 export const DOME_WALL_SEGMENTS = 22; // 楕円を近似する静的セグメント数
-// カプセル半径(28)より薄いとまれにトンネリングしうるため、カプセル半径より少し厚めにする
+// カプセルの物理半径(CAPSULE_RADIUS)より薄いとまれにトンネリングしうるため、少し厚めにする
 export const DOME_WALL_THICKNESS = 32;
 
 // ドーム最下部中央の壁の隙間（ゲート用）の半幅。DOME_RADIUS_Xが変わっても
@@ -50,12 +50,13 @@ export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
 export const CANVAS_HEIGHT = 460;
 
 // カプセル（容器下半分に密集して積もって見えるよう大きくしつつ、上半分に余白が
-// 残る個数に抑えている）
-export const CAPSULE_RADIUS = 28;
+// 残る個数に抑えている）。
+// 見た目の大きさ(CAPSULE_VISUAL_RADIUS)は据え置いたまま、物理的な当たり判定
+// (CAPSULE_RADIUS)だけを一回り小さくすることで、隣接カプセル同士の描画が
+// 重なって見えるようにしている（描画サイズ自体は変えず、重なりだけを強める）。
+export const CAPSULE_VISUAL_RADIUS = 28;
+export const CAPSULE_RADIUS = CAPSULE_VISUAL_RADIUS / 1.22;
 export const CAPSULE_COUNT = 13;
-// 描画時のみ物理半径より一回り大きく描き、隣接カプセル同士が重なって見えるようにする
-// （物理的な当たり判定はCAPSULE_RADIUSのまま変えず、見た目の重なりだけを強める）。
-export const CAPSULE_VISUAL_RADIUS = CAPSULE_RADIUS * 1.22;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
 // 「余白の少ない、みっちりしたマシン」にするため、以前(250)より大きく高さを圧縮している。
