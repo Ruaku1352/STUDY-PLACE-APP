@@ -289,9 +289,9 @@ export function MachineFrontLayer({
       {/* 金属プレート：ブラシ調グラデーション＋太い縁取り＋角の丸ネジ4つ */}
       <rect
         x={KNOB_CX - 90}
-        y={KNOB_CY - 40}
+        y={KNOB_CY - 38}
         width={180}
-        height={80}
+        height={76}
         rx={RADIUS.md}
         fill={`url(#${metalGradId})`}
         stroke={KNOB_GROOVE_COLOR}

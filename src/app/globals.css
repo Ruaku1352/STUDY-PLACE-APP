@@ -459,7 +459,7 @@ button.button-danger {
   position: relative;
   width: 100%;
   max-width: 300px;
-  aspect-ratio: 300 / 520;
+  aspect-ratio: 300 / 500;
   transition: transform 0.6s ease, opacity 0.6s ease;
 }
 
@@ -531,7 +531,7 @@ button.button-danger {
   }
   100% {
     left: 50%;
-    top: 55.6%;
+    top: 63.4%;
     transform: translate(-50%, -50%) scale(0.6);
   }
 }

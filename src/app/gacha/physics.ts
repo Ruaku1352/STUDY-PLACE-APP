@@ -6,13 +6,14 @@
 
 // 論理ステージ全体のサイズ（縦長）
 export const STAGE_WIDTH = 300;
-export const STAGE_HEIGHT = 520;
+export const STAGE_HEIGHT = 500;
 
-// ドーム（透明ケース）。台（筐体）より少し横長になるよう、筐体幅(260)より広めの楕円にしてある。
+// ドーム（透明ケース）。画面幅いっぱいまで広げた縦長の楕円にし、画面高さの約6割を占めるようにする
+// （余白の少ない、みっちりしたマシンにするため）。
 export const DOME_CENTER_X = STAGE_WIDTH / 2;
-export const DOME_CENTER_Y = 150;
-export const DOME_RADIUS_X = 138;
-export const DOME_RADIUS_Y = 104;
+export const DOME_CENTER_Y = 158;
+export const DOME_RADIUS_X = 145;
+export const DOME_RADIUS_Y = 148;
 export const DOME_WALL_SEGMENTS = 22; // 楕円を近似する静的セグメント数
 // カプセル半径(26)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
 export const DOME_WALL_THICKNESS = 28;
@@ -34,9 +35,10 @@ export const LID_CUT_Y = DOME_CENTER_Y - DOME_RADIUS_Y * LID_CUT_RATIO;
 export const LID_BAND_HEIGHT = 24; // 蓋自体の高さ（切り口から上に伸びる分）
 
 // 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）。カプセル直径(52)が
-// 余裕を持って通れるよう、ゲートより広めに取る。
+// 余裕を持って通れるよう、ゲートより広めに取る。シュート自体は筐体の不透明な塗りで
+// 隠れる区間なので、筐体圧縮に合わせて短くなっても見た目には影響しない。
 export const CHUTE_TOP_Y = GATE_Y + 4;
-export const CHUTE_BOTTOM_Y = 372;
+export const CHUTE_BOTTOM_Y = 380;
 export const CHUTE_TOP_HALF_WIDTH = 38;
 export const CHUTE_BOTTOM_HALF_WIDTH = 46;
 export const CHUTE_WALL_THICKNESS = 28;
@@ -45,33 +47,34 @@ export const CHUTE_WALL_THICKNESS = 28;
 export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
 
 // Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
-export const CANVAS_HEIGHT = 420;
+export const CANVAS_HEIGHT = 460;
 
 // カプセル（メダルと同じ大きさ感になるよう大きめに設定）
 export const CAPSULE_RADIUS = 26;
 export const CAPSULE_COUNT = 12;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
-export const CABINET_TOP = 258;
-export const CABINET_HEIGHT = 250;
+// 「余白の少ない、みっちりしたマシン」にするため、以前(250)より大きく高さを圧縮している。
+export const CABINET_TOP = 296;
+export const CABINET_HEIGHT = 175;
 export const CABINET_X = 20;
 export const CABINET_WIDTH = STAGE_WIDTH - CABINET_X * 2;
 export const CABINET_RX = 18;
 
 // ドームと筐体をつなぐ首（リング状の土台）。筐体の開始位置(CABINET_TOP)まで
 // 隙間なく届く高さにして、ドームが筐体に接着して見えるようにする。
-export const COLLAR_HALF_WIDTH = 70;
+export const COLLAR_HALF_WIDTH = 72;
 export const COLLAR_TOP = DOME_CENTER_Y + DOME_RADIUS_Y - 20;
 export const COLLAR_HEIGHT = CABINET_TOP - COLLAR_TOP + 10;
 
 export const WINDOW_X = 95;
-export const WINDOW_Y = 345;
+export const WINDOW_Y = 385;
 export const WINDOW_WIDTH = 110;
-export const WINDOW_HEIGHT = 63;
+export const WINDOW_HEIGHT = 55;
 export const WINDOW_RX = 10;
 
 export const KNOB_CX = STAGE_WIDTH / 2;
-export const KNOB_CY = 312;
+export const KNOB_CY = 340;
 export const KNOB_R = 26;
 
 export const COIN_SLOT_CX = KNOB_CX;
