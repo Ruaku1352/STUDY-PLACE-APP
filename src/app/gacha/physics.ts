@@ -53,6 +53,9 @@ export const CANVAS_HEIGHT = 460;
 // 残る個数に抑えている）
 export const CAPSULE_RADIUS = 28;
 export const CAPSULE_COUNT = 13;
+// 描画時のみ物理半径より一回り大きく描き、隣接カプセル同士が重なって見えるようにする
+// （物理的な当たり判定はCAPSULE_RADIUSのまま変えず、見た目の重なりだけを強める）。
+export const CAPSULE_VISUAL_RADIUS = CAPSULE_RADIUS * 1.22;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
 // 「余白の少ない、みっちりしたマシン」にするため、以前(250)より大きく高さを圧縮している。

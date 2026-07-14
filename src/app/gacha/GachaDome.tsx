@@ -6,6 +6,7 @@ import { outlineWidth, randomCapsuleColorPair, type CapsuleColorPair } from "./c
 import {
   CAPSULE_COUNT,
   CAPSULE_RADIUS,
+  CAPSULE_VISUAL_RADIUS,
   CANVAS_HEIGHT,
   CHUTE_BOTTOM_HALF_WIDTH,
   CHUTE_BOTTOM_Y,
@@ -288,7 +289,8 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
 
       for (const { body, visual } of withVisual) {
         const { x, y } = body.position;
-        const r = CAPSULE_RADIUS;
+        // 物理的な当たり判定(CAPSULE_RADIUS)より一回り大きく描画し、隣接カプセル同士の重なりを強調する
+        const r = CAPSULE_VISUAL_RADIUS;
         // 奥(depth=0)ほど暗く、手前(depth=1)ほど明るく見せて重なりの立体感を出す
         const shade = 0.72 + 0.28 * visual.depth;
         const topColor = shadeColor(visual.top, shade);
