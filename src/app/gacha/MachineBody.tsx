@@ -5,6 +5,9 @@ import {
   DOME_GLASS_HIGHLIGHT,
   KNOB_COLOR,
   KNOB_GROOVE_COLOR,
+  LID_SILVER,
+  LID_SILVER_DARK,
+  LID_SILVER_HIGHLIGHT,
   MACHINE_BODY_COLOR,
   MACHINE_BODY_DARK_COLOR,
   WINDOW_INTERIOR_COLOR,
@@ -17,10 +20,14 @@ import {
   CABINET_X,
   DOME_CENTER_X,
   DOME_CENTER_Y,
-  DOME_RADIUS,
+  DOME_RADIUS_X,
+  DOME_RADIUS_Y,
   KNOB_CX,
   KNOB_CY,
   KNOB_R,
+  LID_HEIGHT,
+  LID_WIDTH,
+  LID_Y,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   WINDOW_HEIGHT,
@@ -50,7 +57,7 @@ export function MachineBackLayer({ className }: { className?: string }) {
         </radialGradient>
       </defs>
       {/* ドーム越しにうっすら透ける背景（差し替え可能なプレースホルダ） */}
-      <circle cx={DOME_CENTER_X} cy={DOME_CENTER_Y} r={DOME_RADIUS - 2} fill={`url(#${gradId})`} />
+      <ellipse cx={DOME_CENTER_X} cy={DOME_CENTER_Y} rx={DOME_RADIUS_X - 2} ry={DOME_RADIUS_Y - 2} fill={`url(#${gradId})`} />
       {/* 排出口窓の暗い内側 */}
       <rect x={WINDOW_X} y={WINDOW_Y} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} rx={WINDOW_RX} fill={WINDOW_INTERIOR_COLOR} />
     </svg>
@@ -91,7 +98,7 @@ export function MachineFrontLayer({
       {/* ドームと筐体をつなぐリング状の土台（筐体と同系色で一体感を出す） */}
       <rect
         x={DOME_CENTER_X - 54}
-        y={DOME_CENTER_Y + DOME_RADIUS - 20}
+        y={DOME_CENTER_Y + DOME_RADIUS_Y - 20}
         width={108}
         height={34}
         rx={17}
@@ -99,7 +106,7 @@ export function MachineFrontLayer({
       />
       <rect
         x={DOME_CENTER_X - 54}
-        y={DOME_CENTER_Y + DOME_RADIUS - 20}
+        y={DOME_CENTER_Y + DOME_RADIUS_Y - 20}
         width={108}
         height={10}
         rx={5}
@@ -107,28 +114,31 @@ export function MachineFrontLayer({
         opacity={0.5}
       />
 
-      {/* ドームのガラス表現: 筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
-      <circle cx={DOME_CENTER_X} cy={DOME_CENTER_Y} r={DOME_RADIUS - 4} fill={`url(#${glassGradId})`} />
-      <circle
+      {/* ドームのガラス表現（台に合わせて楕円形に）: 筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
+      <ellipse cx={DOME_CENTER_X} cy={DOME_CENTER_Y} rx={DOME_RADIUS_X - 4} ry={DOME_RADIUS_Y - 4} fill={`url(#${glassGradId})`} />
+      <ellipse
         cx={DOME_CENTER_X}
         cy={DOME_CENTER_Y}
-        r={DOME_RADIUS}
+        rx={DOME_RADIUS_X}
+        ry={DOME_RADIUS_Y}
         fill="none"
         stroke={MACHINE_BODY_DARK_COLOR}
         strokeWidth={11}
       />
-      <circle
+      <ellipse
         cx={DOME_CENTER_X}
         cy={DOME_CENTER_Y}
-        r={DOME_RADIUS - 7}
+        rx={DOME_RADIUS_X - 7}
+        ry={DOME_RADIUS_Y - 7}
         fill="none"
         stroke="rgba(255, 255, 255, 0.4)"
         strokeWidth={2}
       />
-      <circle
+      <ellipse
         cx={DOME_CENTER_X}
         cy={DOME_CENTER_Y}
-        r={DOME_RADIUS - 4.5}
+        rx={DOME_RADIUS_X - 4.5}
+        ry={DOME_RADIUS_Y - 4.5}
         fill="none"
         stroke={MACHINE_BODY_COLOR}
         strokeWidth={3}
@@ -137,20 +147,43 @@ export function MachineFrontLayer({
 
       {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
       <path
-        d={`M ${DOME_CENTER_X - DOME_RADIUS * 0.6} ${DOME_CENTER_Y - DOME_RADIUS * 0.66}
-            A ${DOME_RADIUS * 0.82} ${DOME_RADIUS * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS * 0.1} ${DOME_CENTER_Y - DOME_RADIUS * 0.95}`}
+        d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.66}
+            A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.1} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.95}`}
         fill="none"
         stroke={DOME_GLASS_HIGHLIGHT}
         strokeWidth={12}
         strokeLinecap="round"
       />
       <ellipse
-        cx={DOME_CENTER_X - DOME_RADIUS * 0.42}
-        cy={DOME_CENTER_Y - DOME_RADIUS * 0.5}
+        cx={DOME_CENTER_X - DOME_RADIUS_X * 0.42}
+        cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
         rx={7}
         ry={11}
         fill="rgba(255, 255, 255, 0.55)"
-        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS * 0.42} ${DOME_CENTER_Y - DOME_RADIUS * 0.5})`}
+        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS_X * 0.42} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5})`}
+      />
+
+      {/* ドーム上部の銀色の蓋（横に平たいキャップ） */}
+      <ellipse
+        cx={DOME_CENTER_X}
+        cy={LID_Y + LID_HEIGHT / 2}
+        rx={LID_WIDTH / 2}
+        ry={LID_HEIGHT / 2}
+        fill={LID_SILVER_DARK}
+      />
+      <ellipse
+        cx={DOME_CENTER_X}
+        cy={LID_Y + LID_HEIGHT / 2 - 3}
+        rx={LID_WIDTH / 2 - 4}
+        ry={LID_HEIGHT / 2 - 4}
+        fill={LID_SILVER}
+      />
+      <ellipse
+        cx={DOME_CENTER_X - LID_WIDTH * 0.18}
+        cy={LID_Y + LID_HEIGHT * 0.32}
+        rx={LID_WIDTH * 0.22}
+        ry={LID_HEIGHT * 0.14}
+        fill={LID_SILVER_HIGHLIGHT}
       />
 
       {/* 筐体本体（排出口窓は穴あき） */}

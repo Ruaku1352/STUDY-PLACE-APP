@@ -14,7 +14,8 @@ import {
   CHUTE_WALL_THICKNESS,
   DOME_CENTER_X,
   DOME_CENTER_Y,
-  DOME_RADIUS,
+  DOME_RADIUS_X,
+  DOME_RADIUS_Y,
   DOME_WALL_SEGMENTS,
   DOME_WALL_THICKNESS,
   FRICTION,
@@ -39,10 +40,10 @@ export interface GachaDomeHandle {
   eject: () => Promise<CapsuleColorPair>;
 }
 
-function wallFromPoints(x1: number, y1: number, x2: number, y2: number, thickness: number): Matter.Body {
+function wallFromPoints(x1: number, y1: number, x2: number, y2: number, thickness: number, lengthScale = 1): Matter.Body {
   const dx = x2 - x1;
   const dy = y2 - y1;
-  const length = Math.sqrt(dx * dx + dy * dy);
+  const length = Math.sqrt(dx * dx + dy * dy) * lengthScale;
   const angle = Math.atan2(dy, dx);
   return Matter.Bodies.rectangle((x1 + x2) / 2, (y1 + y2) / 2, length, thickness, {
     isStatic: true,
@@ -52,28 +53,31 @@ function wallFromPoints(x1: number, y1: number, x2: number, y2: number, thicknes
   });
 }
 
+/**
+ * 楕円形のドーム境界を、隣り合う2点を結ぶ短い矩形（静的セグメント）を連ねて近似する。
+ * 楕円は円と違い弧の間隔が一定でないため、角度ではなく隣接2点間の距離・角度から都度算出する。
+ */
 function createDomeWalls(): Matter.Body[] {
   const walls: Matter.Body[] = [];
   const segAngle = (Math.PI * 2) / DOME_WALL_SEGMENTS;
-  const segLen = (2 * Math.PI * DOME_RADIUS) / DOME_WALL_SEGMENTS;
+
   for (let i = 0; i < DOME_WALL_SEGMENTS; i++) {
-    const angle = i * segAngle;
+    const angleA = i * segAngle;
+    const angleB = angleA + segAngle;
+
     // ドーム最下部中央はゲート用に壁を作らない（出口の隙間）。
     // カプセルが大きくなった分、ゲート/シュートの幅より確実に広く隙間を空ける。
-    const normalized = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const isBottomGap = normalized > Math.PI * 0.36 && normalized < Math.PI * 0.64;
+    const midAngle = angleA + segAngle / 2;
+    const normalizedMid = ((midAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const isBottomGap = normalizedMid > Math.PI * 0.36 && normalizedMid < Math.PI * 0.64;
     if (isBottomGap) continue;
 
-    const x = DOME_CENTER_X + Math.cos(angle) * DOME_RADIUS;
-    const y = DOME_CENTER_Y + Math.sin(angle) * DOME_RADIUS;
-    walls.push(
-      Matter.Bodies.rectangle(x, y, segLen * 1.2, DOME_WALL_THICKNESS, {
-        isStatic: true,
-        angle: angle + Math.PI / 2,
-        friction: FRICTION,
-        restitution: RESTITUTION,
-      }),
-    );
+    const xA = DOME_CENTER_X + Math.cos(angleA) * DOME_RADIUS_X;
+    const yA = DOME_CENTER_Y + Math.sin(angleA) * DOME_RADIUS_Y;
+    const xB = DOME_CENTER_X + Math.cos(angleB) * DOME_RADIUS_X;
+    const yB = DOME_CENTER_Y + Math.sin(angleB) * DOME_RADIUS_Y;
+
+    walls.push(wallFromPoints(xA, yA, xB, yB, DOME_WALL_THICKNESS, 1.2));
   }
   return walls;
 }
@@ -123,7 +127,7 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
             const [chosen, ...extras] = passed;
             // ごく稀に複数抜けても、選ばれた1個以外はドーム内へ戻す（排出は必ず1個）
             for (const extra of extras) {
-              Matter.Body.setPosition(extra, { x: DOME_CENTER_X, y: DOME_CENTER_Y - DOME_RADIUS * 0.3 });
+              Matter.Body.setPosition(extra, { x: DOME_CENTER_X, y: DOME_CENTER_Y - DOME_RADIUS_Y * 0.3 });
               Matter.Body.setVelocity(extra, { x: 0, y: 0 });
             }
 
@@ -182,13 +186,15 @@ export const GachaDome = forwardRef<GachaDomeHandle, { className?: string }>(fun
     );
 
     // ドーム内壁の内側に確実に収まるよう、半径をクランプしてから配置する
-    // （角度＋距離＋オフセットの組み合わせが半径を超えて生成されないようにするため）
-    const maxSpawnRadius = DOME_RADIUS - CAPSULE_RADIUS - 2;
+    // （角度＋距離＋オフセットの組み合わせが半径を超えて生成されないようにするため）。
+    // 楕円の内接円（短い方の半径）を安全な生成範囲として使う。
+    const domeInnerRadius = Math.min(DOME_RADIUS_X, DOME_RADIUS_Y);
+    const maxSpawnRadius = domeInnerRadius - CAPSULE_RADIUS - 2;
     const capsules: Matter.Body[] = [];
     for (let i = 0; i < CAPSULE_COUNT; i++) {
       const angleSpread = Math.PI * 0.7;
       const angle = Math.PI * 1.15 + Math.random() * angleSpread;
-      const dist = Math.random() * (DOME_RADIUS - CAPSULE_RADIUS * 2);
+      const dist = Math.random() * (domeInnerRadius - CAPSULE_RADIUS * 2);
       let ox = Math.cos(angle) * dist + (Math.random() * 20 - 10);
       let oy = Math.sin(angle) * dist * 0.5 - 20 - i * 2;
       const offsetMagnitude = Math.hypot(ox, oy);

@@ -33,3 +33,8 @@ export const KNOB_GROOVE_COLOR = "#b45309";
 export const MEDAL_GOLD = "#fbbf24";
 export const MEDAL_GOLD_RIM = "#b45309";
 export const WINDOW_INTERIOR_COLOR = "#1f1f2e"; // 排出口窓の暗い内側
+
+// ドーム上部の銀色の蓋
+export const LID_SILVER = "#d4d7dd";
+export const LID_SILVER_DARK = "#9aa0ab";
+export const LID_SILVER_HIGHLIGHT = "rgba(255, 255, 255, 0.7)";

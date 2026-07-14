@@ -8,18 +8,24 @@
 export const STAGE_WIDTH = 300;
 export const STAGE_HEIGHT = 520;
 
-// ドーム（球形の透明ケース）
+// ドーム（透明ケース）。台に合わせて少し楕円（横に広く、縦に平たい）にしてある。
 export const DOME_CENTER_X = STAGE_WIDTH / 2;
 export const DOME_CENTER_Y = 150;
-export const DOME_RADIUS = 108;
-export const DOME_WALL_SEGMENTS = 22; // 円を近似する静的セグメント数
+export const DOME_RADIUS_X = 108;
+export const DOME_RADIUS_Y = 86;
+export const DOME_WALL_SEGMENTS = 22; // 楕円を近似する静的セグメント数
 // カプセル半径(26)より薄いとまれにトンネリングしうるため、カプセル半径以上の厚みを持たせる
 export const DOME_WALL_THICKNESS = 28;
 
 // 排出ゲート（ドーム最下部の堰き止め）。壁の隙間を確実に覆えるよう少し広めに取る。
 export const GATE_WIDTH = 70;
 export const GATE_HEIGHT = 8;
-export const GATE_Y = DOME_CENTER_Y + DOME_RADIUS - 6;
+export const GATE_Y = DOME_CENTER_Y + DOME_RADIUS_Y - 6;
+
+// ドーム上部の銀色の蓋（横に平たいキャップ）
+export const LID_WIDTH = 128;
+export const LID_HEIGHT = 26;
+export const LID_Y = DOME_CENTER_Y - DOME_RADIUS_Y - LID_HEIGHT * 0.3;
 
 // 排出シュート（ゲートの下から排出口窓まで、左右の傾斜壁）。カプセル直径(52)が
 // 余裕を持って通れるよう、ゲートより広めに取る。
