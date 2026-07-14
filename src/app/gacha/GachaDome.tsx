@@ -12,6 +12,7 @@ import {
   CHUTE_TOP_HALF_WIDTH,
   CHUTE_TOP_Y,
   CHUTE_WALL_THICKNESS,
+  DOME_BOTTOM_GAP_HALF_WIDTH,
   DOME_CENTER_X,
   DOME_CENTER_Y,
   DOME_RADIUS_X,
@@ -60,16 +61,19 @@ function wallFromPoints(x1: number, y1: number, x2: number, y2: number, thicknes
 function createDomeWalls(): Matter.Body[] {
   const walls: Matter.Body[] = [];
   const segAngle = (Math.PI * 2) / DOME_WALL_SEGMENTS;
+  // ドーム最下部中央の隙間（ゲート用）を実寸(DOME_BOTTOM_GAP_HALF_WIDTH)で管理する。
+  // DOME_RADIUS_Xが変わっても隙間の実際の幅が一定に保たれるよう、角度は都度逆算する。
+  const bottomGapHalfAngle = Math.asin(Math.min(1, DOME_BOTTOM_GAP_HALF_WIDTH / DOME_RADIUS_X));
 
   for (let i = 0; i < DOME_WALL_SEGMENTS; i++) {
     const angleA = i * segAngle;
     const angleB = angleA + segAngle;
 
     // ドーム最下部中央はゲート用に壁を作らない（出口の隙間）。
-    // カプセルが大きくなった分、ゲート/シュートの幅より確実に広く隙間を空ける。
     const midAngle = angleA + segAngle / 2;
     const normalizedMid = ((midAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const isBottomGap = normalizedMid > Math.PI * 0.36 && normalizedMid < Math.PI * 0.64;
+    const isBottomGap =
+      normalizedMid > Math.PI / 2 - bottomGapHalfAngle && normalizedMid < Math.PI / 2 + bottomGapHalfAngle;
     if (isBottomGap) continue;
 
     const xA = DOME_CENTER_X + Math.cos(angleA) * DOME_RADIUS_X;

@@ -18,6 +18,9 @@ import {
   CABINET_TOP,
   CABINET_WIDTH,
   CABINET_X,
+  COLLAR_HALF_WIDTH,
+  COLLAR_HEIGHT,
+  COLLAR_TOP,
   DOME_CENTER_X,
   DOME_CENTER_Y,
   DOME_RADIUS_X,
@@ -95,19 +98,19 @@ export function MachineFrontLayer({
         </radialGradient>
       </defs>
 
-      {/* ドームと筐体をつなぐリング状の土台（筐体と同系色で一体感を出す） */}
+      {/* ドームと筐体をつなぐ首（リング状の土台）。筐体まで隙間なく届く高さにして接着させる。 */}
       <rect
-        x={DOME_CENTER_X - 54}
-        y={DOME_CENTER_Y + DOME_RADIUS_Y - 20}
-        width={108}
-        height={34}
+        x={DOME_CENTER_X - COLLAR_HALF_WIDTH}
+        y={COLLAR_TOP}
+        width={COLLAR_HALF_WIDTH * 2}
+        height={COLLAR_HEIGHT}
         rx={17}
         fill={MACHINE_BODY_DARK_COLOR}
       />
       <rect
-        x={DOME_CENTER_X - 54}
-        y={DOME_CENTER_Y + DOME_RADIUS_Y - 20}
-        width={108}
+        x={DOME_CENTER_X - COLLAR_HALF_WIDTH}
+        y={COLLAR_TOP}
+        width={COLLAR_HALF_WIDTH * 2}
         height={10}
         rx={5}
         fill={MACHINE_BODY_COLOR}
