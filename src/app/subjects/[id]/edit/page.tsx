@@ -12,6 +12,8 @@ export default async function EditSubjectPage({ params }: { params: Promise<{ id
 
   const updateWithId = updateSubject.bind(null, subject.id);
   const deleteWithId = deleteSubject.bind(null, subject.id);
+  const weeklyQuotaHours = Math.floor(subject.weeklyQuotaMin / 60);
+  const weeklyQuotaMinutesPart = subject.weeklyQuotaMin % 60;
 
   return (
     <div>
@@ -22,16 +24,32 @@ export default async function EditSubjectPage({ params }: { params: Promise<{ id
           <input id="name" name="name" required defaultValue={subject.name} />
         </div>
         <div className="field">
-          <label htmlFor="weeklyQuotaMin">週間ノルマ（分）</label>
-          <input
-            id="weeklyQuotaMin"
-            name="weeklyQuotaMin"
-            type="number"
-            min={1}
-            step={1}
-            required
-            defaultValue={subject.weeklyQuotaMin}
-          />
+          <label htmlFor="weeklyQuotaHours">週間ノルマ</label>
+          <div className="row">
+            <input
+              id="weeklyQuotaHours"
+              name="weeklyQuotaHours"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={weeklyQuotaHours}
+              style={{ width: "5rem" }}
+              aria-label="時間"
+            />
+            <span>時間</span>
+            <input
+              id="weeklyQuotaMinutes"
+              name="weeklyQuotaMinutes"
+              type="number"
+              min={0}
+              max={59}
+              step={1}
+              defaultValue={weeklyQuotaMinutesPart}
+              style={{ width: "5rem" }}
+              aria-label="分"
+            />
+            <span>分</span>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="timeSlot">時間帯タグ</label>

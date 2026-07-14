@@ -9,15 +9,21 @@ function parseTimeSlot(value: FormDataEntryValue | null): "morning" | "anytime" 
   return value === "morning" ? "morning" : "anytime";
 }
 
+function parseWeeklyQuotaMin(formData: FormData): number {
+  const hours = Number(formData.get("weeklyQuotaHours") ?? 0);
+  const minutes = Number(formData.get("weeklyQuotaMinutes") ?? 0);
+  return hours * 60 + minutes;
+}
+
 export async function createSubject(formData: FormData): Promise<void> {
   const userId = await getCurrentUserId();
 
   const name = String(formData.get("name") ?? "").trim();
-  const weeklyQuotaMin = Number(formData.get("weeklyQuotaMin") ?? 0);
+  const weeklyQuotaMin = parseWeeklyQuotaMin(formData);
   const timeSlot = parseTimeSlot(formData.get("timeSlot"));
 
   if (!name || !Number.isFinite(weeklyQuotaMin) || weeklyQuotaMin <= 0) {
-    throw new Error("科目名と正しい週間ノルマ（分）を入力してください");
+    throw new Error("科目名と正しい週間ノルマ（時間・分）を入力してください");
   }
 
   await prisma.subject.create({
@@ -31,11 +37,11 @@ export async function updateSubject(subjectId: string, formData: FormData): Prom
   const userId = await getCurrentUserId();
 
   const name = String(formData.get("name") ?? "").trim();
-  const weeklyQuotaMin = Number(formData.get("weeklyQuotaMin") ?? 0);
+  const weeklyQuotaMin = parseWeeklyQuotaMin(formData);
   const timeSlot = parseTimeSlot(formData.get("timeSlot"));
 
   if (!name || !Number.isFinite(weeklyQuotaMin) || weeklyQuotaMin <= 0) {
-    throw new Error("科目名と正しい週間ノルマ（分）を入力してください");
+    throw new Error("科目名と正しい週間ノルマ（時間・分）を入力してください");
   }
 
   await prisma.subject.updateMany({

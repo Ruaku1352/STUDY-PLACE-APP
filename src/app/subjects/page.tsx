@@ -41,8 +41,32 @@ export default async function SubjectsPage() {
           <input id="name" name="name" required placeholder="例: 数学" />
         </div>
         <div className="field">
-          <label htmlFor="weeklyQuotaMin">週間ノルマ（分）</label>
-          <input id="weeklyQuotaMin" name="weeklyQuotaMin" type="number" min={1} step={1} required placeholder="例: 300" />
+          <label htmlFor="weeklyQuotaHours">週間ノルマ</label>
+          <div className="row">
+            <input
+              id="weeklyQuotaHours"
+              name="weeklyQuotaHours"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={0}
+              style={{ width: "5rem" }}
+              aria-label="時間"
+            />
+            <span>時間</span>
+            <input
+              id="weeklyQuotaMinutes"
+              name="weeklyQuotaMinutes"
+              type="number"
+              min={0}
+              max={59}
+              step={1}
+              defaultValue={0}
+              style={{ width: "5rem" }}
+              aria-label="分"
+            />
+            <span>分</span>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="timeSlot">時間帯タグ</label>
