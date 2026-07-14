@@ -49,9 +49,10 @@ export const WINDOW_LANDED_Y = CHUTE_BOTTOM_Y + 14;
 // Matter.js Canvasの高さ（ドーム〜シュート〜排出口窓まで。筐体本体より下はSVGのみで描画する）
 export const CANVAS_HEIGHT = 460;
 
-// カプセル（容器下半分に密集して積もって見えるよう、大きく・数を増やしている）
+// カプセル（容器下半分に密集して積もって見えるよう大きくしつつ、上半分に余白が
+// 残る個数に抑えている）
 export const CAPSULE_RADIUS = 28;
-export const CAPSULE_COUNT = 20;
+export const CAPSULE_COUNT = 13;
 
 // 筐体（SVG）レイアウト。MachineBody.tsx / GachaMachine.tsx 双方から参照する共有座標。
 // 「余白の少ない、みっちりしたマシン」にするため、以前(250)より大きく高さを圧縮している。
