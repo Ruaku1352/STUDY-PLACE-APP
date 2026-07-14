@@ -58,11 +58,47 @@ function flatTopEllipsePath(cx: number, cy: number, rx: number, ry: number, flat
 }
 
 /**
+ * ドーム越しに見える背景シーン（差し替え可能なプレースホルダ）。
+ * 「丘と空」程度の簡単なシルエットだが、ガラス越しに向こう側の奥行きがあることが
+ * 伝わればよい。将来的にこの中身だけを別の背景に差し替えられるよう独立させている。
+ */
+function DomeBackgroundScene({ skyGradId }: { skyGradId: string }) {
+  return (
+    <>
+      <rect x={0} y={0} width={STAGE_WIDTH} height={STAGE_HEIGHT} fill={`url(#${skyGradId})`} />
+      {/* 太陽 */}
+      <circle cx={DOME_CENTER_X + DOME_RADIUS_X * 0.42} cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.4} r={16} fill="#fff3c4" opacity={0.95} />
+      {/* 遠くの丘（淡い色） */}
+      <path
+        d={`M ${DOME_CENTER_X - DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.5}
+            Q ${DOME_CENTER_X - DOME_RADIUS_X * 0.35} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.12} ${DOME_CENTER_X + DOME_RADIUS_X * 0.2} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.32}
+            Q ${DOME_CENTER_X + DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.48} ${DOME_CENTER_X + DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.4}
+            L ${DOME_CENTER_X + DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y}
+            L ${DOME_CENTER_X - DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y}
+            Z`}
+        fill="#bfe3c4"
+      />
+      {/* 手前の丘（濃い色） */}
+      <path
+        d={`M ${DOME_CENTER_X - DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.78}
+            Q ${DOME_CENTER_X - DOME_RADIUS_X * 0.45} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.55} ${DOME_CENTER_X} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.7}
+            Q ${DOME_CENTER_X + DOME_RADIUS_X * 0.5} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.87} ${DOME_CENTER_X + DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y * 0.72}
+            L ${DOME_CENTER_X + DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y}
+            L ${DOME_CENTER_X - DOME_RADIUS_X} ${DOME_CENTER_Y + DOME_RADIUS_Y}
+            Z`}
+        fill="#8fce8f"
+      />
+    </>
+  );
+}
+
+/**
  * ドーム背景・排出口窓の暗い内側など、Matter.js Canvasの「後ろ」に置くレイヤー。
- * 背景は独立コンポーネントなので、後から差し替え可能。
+ * 背景シーン(DomeBackgroundScene)は独立コンポーネントなので、後から差し替え可能。
  */
 export function MachineBackLayer({ className }: { className?: string }) {
-  const gradId = useId();
+  const skyGradId = useId();
+  const bgClipId = useId();
   return (
     <svg
       viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
@@ -71,14 +107,19 @@ export function MachineBackLayer({ className }: { className?: string }) {
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
     >
       <defs>
-        <radialGradient id={gradId} cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stopColor="var(--surface)" />
-          <stop offset="100%" stopColor="var(--background)" />
-        </radialGradient>
+        <linearGradient id={skyGradId} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#bfe3fb" />
+          <stop offset="100%" stopColor="#eef8ff" />
+        </linearGradient>
+        <clipPath id={bgClipId}>
+          <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 2, DOME_RADIUS_Y - 2, LID_CUT_Y)} />
+        </clipPath>
       </defs>
-      {/* ドーム越しにうっすら透ける背景（差し替え可能なプレースホルダ）。
-          前面レイヤーのガラスと同じくLID_CUT_Yで上部を平らに切り、蓋の上に飛び出さないようにする。 */}
-      <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 2, DOME_RADIUS_Y - 2, LID_CUT_Y)} fill={`url(#${gradId})`} />
+      {/* ドーム越しに見える背景シーン。前面レイヤーのガラスと同じくLID_CUT_Yで上部を平らに切り、
+          蓋の上に飛び出さないようにする。 */}
+      <g clipPath={`url(#${bgClipId})`}>
+        <DomeBackgroundScene skyGradId={skyGradId} />
+      </g>
       {/* 排出口窓の暗い内側 */}
       <rect x={WINDOW_X} y={WINDOW_Y} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} rx={WINDOW_RX} fill={WINDOW_INTERIOR_COLOR} />
     </svg>
@@ -99,6 +140,7 @@ export function MachineFrontLayer({
   const ginghamId = useId();
   const metalGradId = useId();
   const domeClipId = useId();
+  const glassClipId = useId();
 
   // 蓋（帯）の幅は、ドーム外周の楕円をLID_CUT_Yで切った幅に合わせ、継ぎ目なく繋がって見えるようにする
   const lidSinT = Math.max(-1, Math.min(1, (LID_CUT_Y - DOME_CENTER_Y) / DOME_RADIUS_Y));
@@ -144,6 +186,10 @@ export function MachineFrontLayer({
         {/* 蓋より上をドーム側が一切描画しないようにするクリップ（蓋の下端から下だけを許可） */}
         <clipPath id={domeClipId}>
           <rect x={0} y={lidBandBottomY} width={STAGE_WIDTH} height={STAGE_HEIGHT - lidBandBottomY} />
+        </clipPath>
+        {/* ガラスのハイライト（縦のハイライト帯等）がガラスの輪郭からはみ出さないようにするクリップ */}
+        <clipPath id={glassClipId}>
+          <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4, DOME_RADIUS_Y - 4, LID_CUT_Y)} />
         </clipPath>
       </defs>
 
@@ -194,7 +240,38 @@ export function MachineFrontLayer({
           opacity={0.9}
         />
 
-        {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
+        {/* 縁に沿った反射光（外周に近いところを弧で這わせる、メインのハイライトとは反対側） */}
+        <path
+          d={`M ${DOME_CENTER_X + DOME_RADIUS_X * 0.55} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.7}
+              A ${DOME_RADIUS_X * 0.92} ${DOME_RADIUS_Y * 0.92} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.85} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.1}`}
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.35)"
+          strokeWidth={5}
+          strokeLinecap="round"
+        />
+
+        {/* ガラスのハイライト（大きめの弧＋小さな輝き＋縦に走る太いハイライト2本）。
+            縦帯はガラスの輪郭からはみ出さないようglassClipIdでクリップする。 */}
+        <g clipPath={`url(#${glassClipId})`}>
+          <rect
+            x={DOME_CENTER_X - DOME_RADIUS_X * 0.5}
+            y={LID_CUT_Y + 14}
+            width={DOME_RADIUS_X * 0.22}
+            height={DOME_RADIUS_Y * 1.15}
+            rx={DOME_RADIUS_X * 0.11}
+            fill="rgba(255, 255, 255, 0.3)"
+            transform={`rotate(-9 ${DOME_CENTER_X - DOME_RADIUS_X * 0.4} ${DOME_CENTER_Y})`}
+          />
+          <rect
+            x={DOME_CENTER_X + DOME_RADIUS_X * 0.18}
+            y={LID_CUT_Y + 24}
+            width={DOME_RADIUS_X * 0.12}
+            height={DOME_RADIUS_Y * 0.8}
+            rx={DOME_RADIUS_X * 0.06}
+            fill="rgba(255, 255, 255, 0.18)"
+            transform={`rotate(-6 ${DOME_CENTER_X + DOME_RADIUS_X * 0.24} ${DOME_CENTER_Y})`}
+          />
+        </g>
         <path
           d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
               A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.05} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.78}`}
