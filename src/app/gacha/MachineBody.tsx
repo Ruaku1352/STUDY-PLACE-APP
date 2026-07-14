@@ -76,8 +76,9 @@ export function MachineBackLayer({ className }: { className?: string }) {
           <stop offset="100%" stopColor="var(--background)" />
         </radialGradient>
       </defs>
-      {/* ドーム越しにうっすら透ける背景（差し替え可能なプレースホルダ） */}
-      <ellipse cx={DOME_CENTER_X} cy={DOME_CENTER_Y} rx={DOME_RADIUS_X - 2} ry={DOME_RADIUS_Y - 2} fill={`url(#${gradId})`} />
+      {/* ドーム越しにうっすら透ける背景（差し替え可能なプレースホルダ）。
+          前面レイヤーのガラスと同じくLID_CUT_Yで上部を平らに切り、蓋の上に飛び出さないようにする。 */}
+      <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 2, DOME_RADIUS_Y - 2, LID_CUT_Y)} fill={`url(#${gradId})`} />
       {/* 排出口窓の暗い内側 */}
       <rect x={WINDOW_X} y={WINDOW_Y} width={WINDOW_WIDTH} height={WINDOW_HEIGHT} rx={WINDOW_RX} fill={WINDOW_INTERIOR_COLOR} />
     </svg>
@@ -97,10 +98,15 @@ export function MachineFrontLayer({
   const glassGradId = useId();
   const ginghamId = useId();
   const metalGradId = useId();
+  const domeClipId = useId();
 
   // 蓋（帯）の幅は、ドーム外周の楕円をLID_CUT_Yで切った幅に合わせ、継ぎ目なく繋がって見えるようにする
   const lidSinT = Math.max(-1, Math.min(1, (LID_CUT_Y - DOME_CENTER_Y) / DOME_RADIUS_Y));
   const lidBandHalfWidth = DOME_RADIUS_X * Math.sqrt(Math.max(0, 1 - lidSinT * lidSinT));
+  // 蓋（帯）の下端。ドーム側（ガラス・縁取り・ベゼル等）はここより上を一切描画しない
+  // （太い縁取り線のはみ出しやジョイントの丸みで蓋の外に飛び出すのを防ぐため、
+  // 個々のパスの形状に頼らずclipPathで強制的に切り落とす）。
+  const lidBandBottomY = LID_CUT_Y + 4;
 
   return (
     <svg
@@ -135,6 +141,10 @@ export function MachineFrontLayer({
           <stop offset="82%" stopColor={KNOB_PASTEL.base} />
           <stop offset="100%" stopColor={KNOB_PASTEL.highlight} />
         </linearGradient>
+        {/* 蓋より上をドーム側が一切描画しないようにするクリップ（蓋の下端から下だけを許可） */}
+        <clipPath id={domeClipId}>
+          <rect x={0} y={lidBandBottomY} width={STAGE_WIDTH} height={STAGE_HEIGHT - lidBandBottomY} />
+        </clipPath>
       </defs>
 
       {/* ドームと筐体をつなぐ首（リング状の土台）。筐体まで隙間なく届く高さにして接着させる。 */}
@@ -157,48 +167,51 @@ export function MachineFrontLayer({
       />
 
       {/* ドームのガラス表現（台に合わせて楕円形に、上部は蓋の高さぶん平らに切って蓋と一体化させる）:
-          筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢 */}
-      <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4, DOME_RADIUS_Y - 4, LID_CUT_Y)} fill={`url(#${glassGradId})`} />
-      <path
-        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X, DOME_RADIUS_Y, LID_CUT_Y)}
-        fill="none"
-        stroke={MACHINE_BODY_DARK_COLOR}
-        strokeWidth={outlineWidth(DOME_RADIUS_X * 2)}
-        strokeLinejoin="round"
-      />
-      <path
-        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 7, DOME_RADIUS_Y - 7, LID_CUT_Y)}
-        fill="none"
-        stroke="rgba(255, 255, 255, 0.5)"
-        strokeWidth={2}
-        strokeLinejoin="round"
-      />
-      <path
-        d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4.5, DOME_RADIUS_Y - 4.5, LID_CUT_Y)}
-        fill="none"
-        stroke={MACHINE_BODY_COLOR}
-        strokeWidth={3}
-        strokeLinejoin="round"
-        opacity={0.9}
-      />
+          筐体と同系色の太い縁取り＋内側ベゼル＋グラデーションの光沢。
+          太い縁取り線のはみ出しで蓋の外に飛び出さないよう、蓋の下端から上をclipPathで強制的に切り落とす。 */}
+      <g clipPath={`url(#${domeClipId})`}>
+        <path d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4, DOME_RADIUS_Y - 4, LID_CUT_Y)} fill={`url(#${glassGradId})`} />
+        <path
+          d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X, DOME_RADIUS_Y, LID_CUT_Y)}
+          fill="none"
+          stroke={MACHINE_BODY_DARK_COLOR}
+          strokeWidth={outlineWidth(DOME_RADIUS_X * 2)}
+          strokeLinejoin="round"
+        />
+        <path
+          d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 7, DOME_RADIUS_Y - 7, LID_CUT_Y)}
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.5)"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+        <path
+          d={flatTopEllipsePath(DOME_CENTER_X, DOME_CENTER_Y, DOME_RADIUS_X - 4.5, DOME_RADIUS_Y - 4.5, LID_CUT_Y)}
+          fill="none"
+          stroke={MACHINE_BODY_COLOR}
+          strokeWidth={3}
+          strokeLinejoin="round"
+          opacity={0.9}
+        />
 
-      {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
-      <path
-        d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
-            A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.05} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.78}`}
-        fill="none"
-        stroke={DOME_GLASS_HIGHLIGHT}
-        strokeWidth={12}
-        strokeLinecap="round"
-      />
-      <ellipse
-        cx={DOME_CENTER_X - DOME_RADIUS_X * 0.42}
-        cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.32}
-        rx={7}
-        ry={11}
-        fill="rgba(255, 255, 255, 0.55)"
-        transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS_X * 0.42} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.32})`}
-      />
+        {/* ガラスのハイライト（大きめの弧＋小さな輝き） */}
+        <path
+          d={`M ${DOME_CENTER_X - DOME_RADIUS_X * 0.6} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.5}
+              A ${DOME_RADIUS_X * 0.82} ${DOME_RADIUS_Y * 0.82} 0 0 1 ${DOME_CENTER_X + DOME_RADIUS_X * 0.05} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.78}`}
+          fill="none"
+          stroke={DOME_GLASS_HIGHLIGHT}
+          strokeWidth={12}
+          strokeLinecap="round"
+        />
+        <ellipse
+          cx={DOME_CENTER_X - DOME_RADIUS_X * 0.42}
+          cy={DOME_CENTER_Y - DOME_RADIUS_Y * 0.32}
+          rx={7}
+          ry={11}
+          fill="rgba(255, 255, 255, 0.55)"
+          transform={`rotate(-25 ${DOME_CENTER_X - DOME_RADIUS_X * 0.42} ${DOME_CENTER_Y - DOME_RADIUS_Y * 0.32})`}
+        />
+      </g>
 
       {/* ドーム上部の銀色の蓋。瓶の蓋を横から見た形（上面は描かず、側面の帯として表現する）。
           帯の幅は、ドーム楕円をLID_CUT_Yで切った幅にぴったり合わせ、継ぎ目なく繋がって見えるようにする。 */}
