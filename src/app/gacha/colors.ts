@@ -11,13 +11,14 @@ export interface PastelTriad {
   edge: string;
 }
 
-/** カプセルの配色パレット（パステル調）。既存テーマの--block-*系統の色相を保ちつつ彩度を落とし明度を上げた。 */
+/** カプセルの配色パレット。手描き風のポップな質感を保ちつつ、実物のカプセルトイらしい
+ * 明るくビビッドな色にしている（筐体等の落ち着いたパステルとは別トーン）。 */
 export const CAPSULE_PALETTE: PastelTriad[] = [
-  { base: "#b7c0fb", highlight: "#eef0ff", edge: "#6d72d6" }, // インディゴ
-  { base: "#a6e8bf", highlight: "#e5faec", edge: "#4caf7d" }, // グリーン
-  { base: "#fbe1a0", highlight: "#fef6e0", edge: "#d99a2b" }, // アンバー
-  { base: "#f7bcdb", highlight: "#fdebf4", edge: "#d9679f" }, // ピンク
-  { base: "#d3d8e2", highlight: "#f3f5f8", edge: "#9aa3b5" }, // グレー
+  { base: "#8b96fa", highlight: "#e2e6ff", edge: "#4f56c9" }, // ブルー
+  { base: "#5fe0a0", highlight: "#d8fbe9", edge: "#1f9d63" }, // グリーン
+  { base: "#ffcf4d", highlight: "#fff3cf", edge: "#e0940a" }, // イエロー
+  { base: "#ff85c2", highlight: "#ffe0f0", edge: "#d63d8f" }, // ピンク
+  { base: "#ff9d52", highlight: "#ffe3cc", edge: "#d9650f" }, // オレンジ
 ];
 
 /** 後方互換用（カプセルのベース色のみの配列）。 */
