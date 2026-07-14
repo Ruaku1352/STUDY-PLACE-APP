@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatMinutesAsHM } from "@/lib/formatMinutes";
 
 export interface SubjectProgress {
   subjectId: string;
@@ -43,7 +44,7 @@ function CustomTooltip({
     >
       <div style={{ fontWeight: 600 }}>{d.name}</div>
       <div className="muted">
-        {d.actualMin}分 / {d.quotaMin}分（{d.percent}%）
+        {formatMinutesAsHM(d.actualMin)} / {formatMinutesAsHM(d.quotaMin)}（{d.percent}%）
       </div>
     </div>
   );
@@ -142,8 +143,8 @@ export function ProgressChart({
           {data.map((d) => (
             <tr key={d.subjectId} style={{ borderBottom: "1px solid var(--border)" }}>
               <td style={{ padding: "0.3rem 0" }}>{d.name}</td>
-              <td style={{ textAlign: "right", padding: "0.3rem 0" }}>{d.actualMin}分</td>
-              <td style={{ textAlign: "right", padding: "0.3rem 0" }}>{d.quotaMin}分</td>
+              <td style={{ textAlign: "right", padding: "0.3rem 0" }}>{formatMinutesAsHM(d.actualMin)}</td>
+              <td style={{ textAlign: "right", padding: "0.3rem 0" }}>{formatMinutesAsHM(d.quotaMin)}</td>
               <td
                 style={{
                   textAlign: "right",

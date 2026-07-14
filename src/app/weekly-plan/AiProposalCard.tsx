@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { WeeklyProposal } from "@/lib/ai/weeklyProposal";
+import { formatMinutesAsHM } from "@/lib/formatMinutes";
 
 const TIME_SLOT_LABEL: Record<string, string> = {
   morning: "午前中心",
@@ -103,7 +104,7 @@ export function AiProposalCard({
               <div className="list-item-main">
                 <span className="list-item-title">{meta.name}</span>
                 <span className="list-item-sub">
-                  週 {meta.weeklyQuotaMin}分 → {s.proposedQuotaMin}分
+                  週 {formatMinutesAsHM(meta.weeklyQuotaMin)} → {formatMinutesAsHM(s.proposedQuotaMin)}
                   {s.timeSlotChange !== "no_change" && ` ／ ${TIME_SLOT_LABEL[s.timeSlotChange]}へ変更`}
                 </span>
                 <span className="list-item-sub">{s.reason}</span>

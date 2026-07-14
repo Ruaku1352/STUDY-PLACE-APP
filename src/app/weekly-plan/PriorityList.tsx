@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatMinutesAsHM } from "@/lib/formatMinutes";
 import type { GeneratePlanResult } from "./actions";
 
 export interface PrioritySubject {
@@ -57,7 +58,7 @@ export function PriorityList({
               <span className="list-item-title">
                 {i + 1}. {s.name}
               </span>
-              <span className="list-item-sub">週 {s.weeklyQuotaMin}分</span>
+              <span className="list-item-sub">週 {formatMinutesAsHM(s.weeklyQuotaMin)}</span>
             </div>
             <div className="row">
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="上へ">

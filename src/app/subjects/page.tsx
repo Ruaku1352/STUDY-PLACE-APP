@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { formatMinutesAsHM } from "@/lib/formatMinutes";
 import { prisma } from "@/lib/prisma";
 import { createSubject } from "./actions";
 
@@ -26,7 +27,7 @@ export default async function SubjectsPage() {
             <div className="list-item-main">
               <span className="list-item-title">{s.name}</span>
               <span className="list-item-sub">
-                週 {s.weeklyQuotaMin}分 ・ {TIME_SLOT_LABEL[s.timeSlot]}
+                週 {formatMinutesAsHM(s.weeklyQuotaMin)} ・ {TIME_SLOT_LABEL[s.timeSlot]}
               </span>
             </div>
             <span className="muted">編集 ›</span>
