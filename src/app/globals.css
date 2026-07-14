@@ -434,6 +434,11 @@ button.button-danger {
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
+  /* リロール時はflexで中央寄せするオーバーレイ内に置かれるため、
+     明示的な幅が無いと子要素のwidth:100%の基準が曖昧になり縮んで見えてしまう。
+     常に定まった幅を持たせることで、通常の開封画面と同じ大きさで表示する。 */
+  width: 100%;
+  max-width: 300px;
 }
 
 .gacha-status-bar {
