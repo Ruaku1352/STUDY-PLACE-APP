@@ -637,41 +637,62 @@ button.button-danger {
   transform: translate(-50%, -50%) translate(var(--capsule-dx), var(--capsule-dy)) scale(0.6);
   transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 55;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
 }
 
 .gacha-ejected-capsule-risen {
   transform: translate(-50%, -50%) translate(0, 0) scale(2.6);
 }
 
+/* 上下それぞれ高さ50%にした半円(border-radiusのx/yを別指定)を組み合わせ、
+   閉じた状態で正しい球体のカプセルに見えるようにする。 */
 .gacha-capsule-half {
   position: absolute;
-  inset: 0;
-  border: 2px solid rgba(0, 0, 0, 0.3);
+  left: 0;
+  right: 0;
+  height: 50%;
   box-sizing: border-box;
+  border-left: 2px solid rgba(0, 0, 0, 0.35);
+  border-right: 2px solid rgba(0, 0, 0, 0.35);
   transition:
     transform 0.5s ease,
     opacity 0.4s ease;
 }
 
 .gacha-capsule-half-top {
+  top: 0;
   background: var(--capsule-top);
-  border-radius: 50% 50% 0 0;
-  border-bottom: none;
+  border-top: 2px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
 }
 
 .gacha-capsule-half-bottom {
+  bottom: 0;
   background: var(--capsule-bottom);
-  border-radius: 0 0 50% 50%;
-  border-top: none;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.35);
+  border-top: 1.5px solid rgba(0, 0, 0, 0.25);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+
+.gacha-capsule-half-top::before {
+  content: "";
+  position: absolute;
+  top: 28%;
+  left: 22%;
+  width: 30%;
+  height: 46%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  transform: rotate(-25deg);
 }
 
 .gacha-ejected-capsule-open .gacha-capsule-half-top {
-  transform: translateY(-140%) rotate(-15deg);
+  transform: translateY(-160%) rotate(-20deg);
   opacity: 0;
 }
 
 .gacha-ejected-capsule-open .gacha-capsule-half-bottom {
-  transform: translateY(140%) rotate(15deg);
+  transform: translateY(160%) rotate(20deg);
   opacity: 0;
 }
 
@@ -688,17 +709,22 @@ button.button-danger {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  animation: gacha-card-in 0.4s ease 0.1s both;
+  animation: gacha-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* カプセルが割れた場所からメッセージが飛び出すように、小さく縮めた状態から
+   弾みをつけて広がるアニメーションにする（"開いたら中身が出てくる"演出）。 */
 @keyframes gacha-card-in {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.25) translateY(10px);
+  }
+  60% {
+    opacity: 1;
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
