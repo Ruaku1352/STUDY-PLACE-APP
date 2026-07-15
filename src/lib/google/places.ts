@@ -64,6 +64,42 @@ export async function resolvePlaceId(
   return data.places?.[0]?.id ?? null;
 }
 
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * 住所から緯度経度を解決する（Places API (New): Text Search）。
+ * 天気予報(Open-Meteo)の取得地点を、ユーザーに緯度経度の入力を求めず住所から自動推測するために使う。
+ * 見つからなければ null。
+ */
+export async function resolveAddressLocation(
+  address: string,
+  apiKey: string | undefined = process.env.GOOGLE_MAPS_API_KEY,
+): Promise<LatLng | null> {
+  if (isMockGoogleApiEnabled()) return { lat: 35.6595, lng: 139.7005 }; // mock: 東京駅付近
+
+  if (!apiKey) throw new Error("GOOGLE_MAPS_API_KEY が設定されていません");
+
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.location",
+    },
+    body: JSON.stringify({ textQuery: address }),
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { places?: Array<{ location?: { latitude?: number; longitude?: number } }> };
+  const location = data.places?.[0]?.location;
+  if (location?.latitude === undefined || location?.longitude === undefined) return null;
+
+  return { lat: location.latitude, lng: location.longitude };
+}
+
 /** placeId から営業時間を取得する（Places API (New): Place Details）。取得できなければ null。 */
 export async function fetchOpeningHours(
   placeId: string,

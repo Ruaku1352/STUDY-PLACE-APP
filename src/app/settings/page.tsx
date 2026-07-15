@@ -14,32 +14,11 @@ export default async function SettingsPage() {
           <label htmlFor="homeAddress">自宅住所（移動時間計算の起点）</label>
           <input id="homeAddress" name="homeAddress" defaultValue={settings.homeAddress} placeholder="例: 東京都渋谷区..." />
         </div>
-        <div className="row">
-          <div className="field" style={{ flex: 1 }}>
-            <label htmlFor="homeLat">自宅の緯度（天気予報用・任意）</label>
-            <input
-              id="homeLat"
-              name="homeLat"
-              type="number"
-              step="any"
-              defaultValue={settings.homeLat ?? ""}
-              placeholder="例: 35.6595"
-            />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label htmlFor="homeLng">自宅の経度（天気予報用・任意）</label>
-            <input
-              id="homeLng"
-              name="homeLng"
-              type="number"
-              step="any"
-              defaultValue={settings.homeLng ?? ""}
-              placeholder="例: 139.7005"
-            />
-          </div>
-        </div>
         <p className="muted" style={{ fontSize: "0.75rem", marginTop: "-0.5rem" }}>
-          緯度・経度を設定すると、開封時に当日の天気予報が表示され、雨の日は近場の場所が選ばれやすくなります。未設定の場合は天気機能は使われません。
+          この住所からおおよその位置を自動推測し、開封時の天気予報（雨の日は近場の場所を優先）に使います。
+          {settings.homeLat !== null && settings.homeLng !== null && (
+            <> 現在の推定座標: {settings.homeLat.toFixed(3)}, {settings.homeLng.toFixed(3)}</>
+          )}
         </p>
         <div className="row">
           <div className="field" style={{ flex: 1 }}>
