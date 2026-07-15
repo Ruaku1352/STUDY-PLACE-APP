@@ -2,6 +2,7 @@ import Link from "next/link";
 import { combineDateAndTime, dateStringToDate, dateToHHMM, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { prisma } from "@/lib/prisma";
+import { resolveTodayWeatherForUser } from "@/lib/weather/resolveTodayWeather";
 import {
   deleteBlockManual,
   giveUpToday,
@@ -97,6 +98,9 @@ export default async function TodayPage() {
 
   const bookOptions: BookOption[] = books.map((b) => ({ id: b.id, title: b.title, subjectId: b.subjectId }));
 
+  const resolvedWeather = await resolveTodayWeatherForUser({ prisma, userId, date: today });
+  const weather = resolvedWeather ? { ...resolvedWeather.summary, blocks: resolvedWeather.blocks } : null;
+
   return (
     <div>
       <h1>今日のスケジュール</h1>
@@ -108,6 +112,7 @@ export default async function TodayPage() {
         locationOptions={locations.map((l) => ({ id: l.id, name: l.name }))}
         bookOptions={bookOptions}
         streakDays={streakDays}
+        weather={weather}
         rerollUsed={dayState.rerollUsed}
         gaveUp={dayState.gaveUp}
         rerollAction={rerollToday}

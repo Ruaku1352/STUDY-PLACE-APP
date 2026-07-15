@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toMinutes } from "@/lib/scheduler/time";
 import { GachaMachine } from "./gacha/GachaMachine";
-import type { RevealResult } from "./gacha/types";
+import type { RevealResult, RevealWeather } from "./gacha/types";
+import { WeatherPanel } from "./gacha/WeatherPanel";
 
 export interface TodayBlock {
   id: string;
@@ -50,6 +51,7 @@ export function TodayClient({
   locationOptions,
   bookOptions,
   streakDays,
+  weather,
   rerollUsed,
   gaveUp,
   rerollAction,
@@ -64,6 +66,7 @@ export function TodayClient({
   locationOptions: LocationOption[];
   bookOptions: BookOption[];
   streakDays: number;
+  weather: RevealWeather | null;
   rerollUsed: boolean;
   gaveUp: boolean;
   rerollAction: () => Promise<RevealResult>;
@@ -96,6 +99,11 @@ export function TodayClient({
       <p className="muted" style={{ marginBottom: "0.75rem" }}>
         🔥 {streakDays}日目
       </p>
+      {weather && (
+        <div className="card">
+          <WeatherPanel weather={weather} />
+        </div>
+      )}
       <div className="timeline" style={{ marginBottom: "1.25rem" }}>
         {blocks.map((b, i) => {
           const fullDuration = toMinutes(b.endsAt) - toMinutes(b.startsAt);

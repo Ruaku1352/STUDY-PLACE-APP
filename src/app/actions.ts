@@ -8,8 +8,7 @@ import { calcBookProgress } from "@/lib/books";
 import { summarizeTodayBlocks } from "@/lib/revealSummary";
 import type { RevealResult } from "@/app/gacha/types";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
-import { resolveHomeCoordinates } from "@/lib/google/resolveHomeCoordinates";
-import { resolveDayWeather } from "@/lib/weather/resolveDayWeather";
+import { resolveTodayWeatherForUser } from "@/lib/weather/resolveTodayWeather";
 import {
   createCalendarEventsForBlocks,
   deleteCalendarEventsByIds,
@@ -50,13 +49,13 @@ async function buildRevealResult(
   forceMissionText = false,
   rainRuleApplied = false,
 ): Promise<RevealResult> {
-  const [blocks, subjects, locations, streak, dayState, settings] = await Promise.all([
+  const [blocks, subjects, locations, streak, dayState, resolvedWeather] = await Promise.all([
     prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
     prisma.subject.findMany({ where: { userId } }),
     prisma.location.findMany({ where: { userId } }),
     prisma.streak.findUnique({ where: { userId } }),
     prisma.dayState.findUnique({ where: { userId_date: { userId, date: dateStringToDate(today) } } }),
-    prisma.settings.findUnique({ where: { userId } }),
+    resolveTodayWeatherForUser({ prisma, userId, date: today }),
   ]);
 
   const subjectNameById = new Map(subjects.map((s) => [s.id, s.name]));
@@ -71,29 +70,6 @@ async function buildRevealResult(
 
   const { locationNames, totalStudyMin } = summarizeTodayBlocks(blockSummaries);
 
-  const isWeekend = weekdayIndex(today) >= 5;
-  const wakeTime = settings ? (isWeekend ? settings.wakeWeekend : settings.wakeWeekday) : "08:00";
-  // 天気機能追加より前から住所を設定済みのユーザーは homeLat/homeLng が未解決のことがあるため、
-  // 開封時にも自動推測を試みる（設定画面を開き直させない）。
-  const homeLocation = settings
-    ? await resolveHomeCoordinates({
-        prisma,
-        userId,
-        homeAddress: settings.homeAddress,
-        homeLat: settings.homeLat,
-        homeLng: settings.homeLng,
-      })
-    : null;
-  const resolvedWeather = homeLocation
-    ? await resolveDayWeather({
-        prisma,
-        userId,
-        date: today,
-        homeLat: homeLocation.lat,
-        homeLng: homeLocation.lng,
-        wakeTimeHHMM: wakeTime,
-      })
-    : null;
   const weather = resolvedWeather ? { ...resolvedWeather.summary, blocks: resolvedWeather.blocks } : null;
 
   let missionText: string;
@@ -183,28 +159,7 @@ export async function rerollToday(): Promise<RevealResult> {
 
   // 開封時に取得済みの当日の天気（同日なのでキャッシュから取得され、APIは再度呼ばれない）から
   // 雨の日かどうかを判定し、雨の日ルール（近場優先の重み付け抽選）に反映する。
-  const settings = await prisma.settings.findUnique({ where: { userId } });
-  const isWeekend = weekdayIndex(today) >= 5;
-  const wakeTime = settings ? (isWeekend ? settings.wakeWeekend : settings.wakeWeekday) : input.settings.wakeWeekday;
-  const homeLocation = settings
-    ? await resolveHomeCoordinates({
-        prisma,
-        userId,
-        homeAddress: settings.homeAddress,
-        homeLat: settings.homeLat,
-        homeLng: settings.homeLng,
-      })
-    : null;
-  const resolvedWeather = homeLocation
-    ? await resolveDayWeather({
-        prisma,
-        userId,
-        date: today,
-        homeLat: homeLocation.lat,
-        homeLng: homeLocation.lng,
-        wakeTimeHHMM: wakeTime,
-      })
-    : null;
+  const resolvedWeather = await resolveTodayWeatherForUser({ prisma, userId, date: today });
   const isRainy = resolvedWeather?.summary.isRainy ?? false;
 
   const previousBlocksRaw = await prisma.scheduleBlock.findMany({
