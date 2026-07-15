@@ -8,6 +8,7 @@ import { calcBookProgress } from "@/lib/books";
 import { summarizeTodayBlocks } from "@/lib/revealSummary";
 import type { RevealResult } from "@/app/gacha/types";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
+import { resolveHomeCoordinates } from "@/lib/google/resolveHomeCoordinates";
 import { resolveDayWeather } from "@/lib/weather/resolveDayWeather";
 import {
   createCalendarEventsForBlocks,
@@ -72,13 +73,24 @@ async function buildRevealResult(
 
   const isWeekend = weekdayIndex(today) >= 5;
   const wakeTime = settings ? (isWeekend ? settings.wakeWeekend : settings.wakeWeekday) : "08:00";
-  const resolvedWeather = settings
+  // 天気機能追加より前から住所を設定済みのユーザーは homeLat/homeLng が未解決のことがあるため、
+  // 開封時にも自動推測を試みる（設定画面を開き直させない）。
+  const homeLocation = settings
+    ? await resolveHomeCoordinates({
+        prisma,
+        userId,
+        homeAddress: settings.homeAddress,
+        homeLat: settings.homeLat,
+        homeLng: settings.homeLng,
+      })
+    : null;
+  const resolvedWeather = homeLocation
     ? await resolveDayWeather({
         prisma,
         userId,
         date: today,
-        homeLat: settings.homeLat,
-        homeLng: settings.homeLng,
+        homeLat: homeLocation.lat,
+        homeLng: homeLocation.lng,
         wakeTimeHHMM: wakeTime,
       })
     : null;
@@ -174,13 +186,22 @@ export async function rerollToday(): Promise<RevealResult> {
   const settings = await prisma.settings.findUnique({ where: { userId } });
   const isWeekend = weekdayIndex(today) >= 5;
   const wakeTime = settings ? (isWeekend ? settings.wakeWeekend : settings.wakeWeekday) : input.settings.wakeWeekday;
-  const resolvedWeather = settings
+  const homeLocation = settings
+    ? await resolveHomeCoordinates({
+        prisma,
+        userId,
+        homeAddress: settings.homeAddress,
+        homeLat: settings.homeLat,
+        homeLng: settings.homeLng,
+      })
+    : null;
+  const resolvedWeather = homeLocation
     ? await resolveDayWeather({
         prisma,
         userId,
         date: today,
-        homeLat: settings.homeLat,
-        homeLng: settings.homeLng,
+        homeLat: homeLocation.lat,
+        homeLng: homeLocation.lng,
         wakeTimeHHMM: wakeTime,
       })
     : null;
