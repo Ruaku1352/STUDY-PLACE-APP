@@ -9,9 +9,17 @@ export interface MissionTextBlock {
   endsAt: string; // "HH:MM"
 }
 
+export interface MissionTextWeather {
+  isRainy: boolean;
+  maxTempC: number;
+  minTempC: number;
+}
+
 export interface GenerateMissionTextInput {
   blocks: MissionTextBlock[];
   streakDays: number;
+  /** 天気予報（未設定・取得失敗時はnull）。雨の日は傘を促す等、演出に織り込む。 */
+  weather?: MissionTextWeather | null;
 }
 
 /**
@@ -27,6 +35,8 @@ export async function generateMissionText(input: GenerateMissionTextInput): Prom
     system: `あなたは勉強スケジュール管理アプリ「デイリーガチャ」の開封演出担当です。
 今日のスケジュール概要とストリーク日数をもとに、ユーザーを鼓舞する「本日の任務」風の短い日本語テキストを2〜3文で生成してください。
 このテキストは開封後（場所・科目が既にユーザーに見えている状態）に表示するので、場所名・科目名はそのまま使ってよいです。
+入力に weather が含まれ isRainy が true の場合は、「雨だから傘を忘れずに」のように天気に触れつつポジティブに演出してください。
+weather が null、または isRainy が false の場合は天気には触れなくてよいです。
 堅すぎず、ゲームのミッション演出のような高揚感のある文体にしてください。前置きや見出しは不要で、本文のみを返してください。`,
     messages: [{ role: "user", content: JSON.stringify(input) }],
   });

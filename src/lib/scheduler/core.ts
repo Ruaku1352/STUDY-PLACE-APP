@@ -23,6 +23,9 @@ const LUNCH_LEN = 45;
 const LUNCH_WINDOW_START = toMinutes("11:30");
 const LUNCH_WINDOW_END = toMinutes("13:30");
 
+/** 雨の日の場所抽選で、自宅からの移動時間が近い側の候補に掛ける重み倍率。 */
+export const RAIN_NEAR_HALF_WEIGHT_MULTIPLIER = 2;
+
 function businessOpenMin(loc: SchedulerLocation, weekday: number): number | undefined {
   const hrs = loc.openingHours[weekday];
   return hrs ? toMinutes(hrs.open) : undefined;
@@ -57,6 +60,30 @@ interface ChosenLocation {
   arrival: number;
 }
 
+/**
+ * 雨の日用: 自宅からの移動時間が短い側の半分に重み(RAIN_NEAR_HALF_WEIGHT_MULTIPLIER倍)を
+ * かけた重み付き抽選で1件選ぶ。完全な除外はしない（遠い場所も低確率で出る）。
+ */
+function pickByRainWeight(
+  candidates: ChosenLocation[],
+  travelTimeFn: TravelTimeFn,
+  randomFn: () => number,
+): ChosenLocation {
+  const sorted = [...candidates].sort(
+    (a, b) => travelTimeFn("home", a.location.id) - travelTimeFn("home", b.location.id),
+  );
+  const nearCount = Math.ceil(sorted.length / 2);
+  const weights = sorted.map((_, i) => (i < nearCount ? RAIN_NEAR_HALF_WEIGHT_MULTIPLIER : 1));
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+  let r = randomFn() * totalWeight;
+  for (let i = 0; i < sorted.length; i++) {
+    r -= weights[i];
+    if (r < 0) return sorted[i];
+  }
+  return sorted[sorted.length - 1];
+}
+
 function chooseLocation(params: {
   locations: SchedulerLocation[];
   usedToday: Set<string>;
@@ -66,8 +93,10 @@ function chooseLocation(params: {
   usageHistory: string[];
   fromKey: string;
   travelTimeFn: TravelTimeFn;
+  isRainy?: boolean;
+  randomFn?: () => number;
 }): ChosenLocation | undefined {
-  const { locations, usedToday, weekday, tMin, windowEnd, usageHistory, fromKey, travelTimeFn } = params;
+  const { locations, usedToday, weekday, tMin, windowEnd, usageHistory, fromKey, travelTimeFn, isRainy, randomFn = Math.random } = params;
 
   const candidates: ChosenLocation[] = [];
   for (const location of locations) {
@@ -84,6 +113,10 @@ function chooseLocation(params: {
     }
   }
   if (candidates.length === 0) return undefined;
+
+  if (isRainy) {
+    return pickByRainWeight(candidates, travelTimeFn, randomFn);
+  }
 
   // ローテーション: 使ったことがない場所を最優先、次に直近使用が古い場所を優先
   const score = (c: ChosenLocation) => {
@@ -108,6 +141,8 @@ function fillWindow(params: {
   travelTimeFn: TravelTimeFn;
   hadLunch: { value: boolean };
   blocksOut: ScheduleBlock[];
+  isRainy?: boolean;
+  randomFn?: () => number;
 }): string {
   const {
     windowStart,
@@ -122,6 +157,8 @@ function fillWindow(params: {
     travelTimeFn,
     hadLunch,
     blocksOut,
+    isRainy,
+    randomFn,
   } = params;
 
   let t = windowStart;
@@ -139,6 +176,8 @@ function fillWindow(params: {
       usageHistory,
       fromKey: loc,
       travelTimeFn,
+      isRainy,
+      randomFn,
     });
     if (!picked) break;
 
@@ -210,8 +249,11 @@ export function generateDay(params: {
   settings: SchedulerSettings;
   travelTimeFn: TravelTimeFn;
   usageHistory: string[];
+  /** 雨の日の場所抽選を行うかどうか。週間ノルマ生成のように天気が未知の時点では常にfalse(既定)。 */
+  isRainy?: boolean;
+  randomFn?: () => number;
 }): ScheduleBlock[] {
-  const { date, subjectStates, locations, fixedEvents, settings, travelTimeFn, usageHistory } = params;
+  const { date, subjectStates, locations, fixedEvents, settings, travelTimeFn, usageHistory, isRainy, randomFn } = params;
 
   const weekday = weekdayIndex(date);
   const isWeekend = weekday >= 5;
@@ -249,6 +291,8 @@ export function generateDay(params: {
         travelTimeFn,
         hadLunch,
         blocksOut: blocks,
+        isRainy,
+        randomFn,
       });
     }
 
@@ -274,6 +318,8 @@ export function generateDay(params: {
       travelTimeFn,
       hadLunch,
       blocksOut: blocks,
+      isRainy,
+      randomFn,
     });
   }
 

@@ -737,6 +737,58 @@ button.button-danger {
   color: var(--muted);
 }
 
+.gacha-reveal-rain-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.gacha-weather {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gacha-weather-summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.gacha-weather-blocks {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.gacha-weather-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.35rem 0.1rem;
+  border-radius: 0.5rem;
+}
+
+.gacha-weather-block-rainy {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.gacha-weather-block-time {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.gacha-weather-block-icon {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.gacha-weather-block-temp {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .gacha-knob-group {
   transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1);
 }

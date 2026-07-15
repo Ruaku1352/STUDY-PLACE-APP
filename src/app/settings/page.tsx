@@ -16,6 +16,33 @@ export default async function SettingsPage() {
         </div>
         <div className="row">
           <div className="field" style={{ flex: 1 }}>
+            <label htmlFor="homeLat">自宅の緯度（天気予報用・任意）</label>
+            <input
+              id="homeLat"
+              name="homeLat"
+              type="number"
+              step="any"
+              defaultValue={settings.homeLat ?? ""}
+              placeholder="例: 35.6595"
+            />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label htmlFor="homeLng">自宅の経度（天気予報用・任意）</label>
+            <input
+              id="homeLng"
+              name="homeLng"
+              type="number"
+              step="any"
+              defaultValue={settings.homeLng ?? ""}
+              placeholder="例: 139.7005"
+            />
+          </div>
+        </div>
+        <p className="muted" style={{ fontSize: "0.75rem", marginTop: "-0.5rem" }}>
+          緯度・経度を設定すると、開封時に当日の天気予報が表示され、雨の日は近場の場所が選ばれやすくなります。未設定の場合は天気機能は使われません。
+        </p>
+        <div className="row">
+          <div className="field" style={{ flex: 1 }}>
             <label htmlFor="wakeWeekday">起床時刻（平日）</label>
             <input id="wakeWeekday" name="wakeWeekday" type="time" defaultValue={settings.wakeWeekday} required />
           </div>

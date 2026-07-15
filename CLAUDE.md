@@ -10,11 +10,12 @@
 - Next.js (App Router) + TypeScript
 - DB: Postgres (Neon) + Prisma
 - 認証: Auth.js (NextAuth) の Googleログイン（Calendar連携とOAuth兼用）
-- 外部API: Google Routes API（移動時間 transit+walking）/ Places API（営業時間）/ Calendar API
+- 外部API: Google Routes API（移動時間 transit+walking）/ Places API（営業時間）/ Calendar API / Open-Meteo API（天気予報・無料・キー不要）
 - グラフ: Recharts / テスト: Vitest / ホスティング: Vercel
 
 ## 絶対に守るルール
 1. **Google API結果は必ずDBにキャッシュ**（有効期限30日）。キャッシュなしのループ呼び出し厳禁。
+   天気(Open-Meteo)は性質が異なり**同日内は再取得しない**方式でDayStateにキャッシュする（`src/lib/weather/`）。
 2. **全テーブルに userId を持たせ、全クエリを userId でスコープ**する（現在は1ユーザーでも）。
 3. APIキー・OAuthシークレットはサーバー側の環境変数のみ。クライアント露出・コミット禁止。
 4. スケジューリングロジックは `src/lib/scheduler/` に**純粋関数**として分離し、Vitestでテストする。
@@ -35,6 +36,7 @@
 - 場所は直近数日使ったものの優先度を下げてローテーション（場所を変える楽しさ）。
 - 休憩・昼食は自動で適度に配置（極端な連続勉強・昼食抜きは避ける）。
 - ノルマ合計 > 実質可能時間なら生成時に警告し、優先順位の高い科目から割り当て。自動でノルマは変えない。
+- 天気は開封時にのみ取得するため、週間プラン生成時点では雨の日判定は使わない。**リロール時のみ**、開封時に取得済みの当日天気から「日中(出発〜21:00)の最大降水確率50%以上」を雨の日と判定し、自宅からの移動時間が近い場所を優先する重み付け抽選（近い半分の場所の当選確率2倍、完全排除はしない）を行う。
 
 ## デイリーガチャ（表示制御の核心）
 - 生成した週間プランは事前に見せない。**当日にユーザーが開封して初めてその日の場所・時間割を表示**。
@@ -45,6 +47,7 @@
 ## ディレクトリ方針
 - `src/lib/scheduler/` 純粋ロジック（API・DB非依存）
 - `src/lib/google/` Google API クライアント＋キャッシュ層
+- `src/lib/weather/` Open-Meteo クライアント＋当日天気キャッシュ＋3時間集約ロジック（雨の日判定・場所抽選の重み付けに使用）
 - `src/lib/ai/` Claude API クライアント＋AI関連ロジック（週次ノルマ提案・参考書vision抽出・ミッション文生成）
 - `src/app/` 画面とAPI Routes / `prisma/` スキーマ / `tasks/` フェーズ別作業指示
 

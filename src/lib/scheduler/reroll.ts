@@ -19,10 +19,15 @@ export interface RerollInput {
   settings: SchedulerSettings;
   travelTimeFn: TravelTimeFn;
   recentlyUsedLocationIds?: string[];
+  /** 開封時に取得済みの当日の天気から判定した「雨の日」フラグ。trueなら近場優先の重み付け抽選にする。 */
+  isRainy?: boolean;
+  randomFn?: () => number;
 }
 
 export interface RerollResult {
   blocks: ScheduleBlock[];
+  /** 雨ルール（近場優先の重み付け抽選）が実際に発動したか。開封カードへの明示に使う。 */
+  rainRuleApplied: boolean;
 }
 
 export function reroll(input: RerollInput): RerollResult {
@@ -58,7 +63,11 @@ export function reroll(input: RerollInput): RerollResult {
     settings: input.settings,
     travelTimeFn: input.travelTimeFn,
     usageHistory,
+    isRainy: input.isRainy,
+    randomFn: input.randomFn,
   });
 
-  return { blocks };
+  const rainRuleApplied = Boolean(input.isRainy) && blocks.some((b) => b.type === "study" && b.locationId);
+
+  return { blocks, rainRuleApplied };
 }
