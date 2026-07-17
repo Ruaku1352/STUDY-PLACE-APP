@@ -245,6 +245,36 @@ describe("generateWeek", () => {
     expect(toMinutes(moveB.endsAt) - toMinutes(moveB.startsAt)).toBe(40);
   });
 
+  it("startDateを指定すると、それより前の日にはブロックが生成されず、残り日数だけで均等配分される", () => {
+    const midWeekStart = addDaysToDate(WEEK_START, 2); // 水曜（週の3日目）
+    // 残り5日(水〜日)で均等配分されるよう、ちょうど5日分(300分)のノルマにする
+    const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 300, priority: 0, timeSlot: "anytime" }];
+
+    const { blocks } = generateWeek({
+      weekStartDate: WEEK_START,
+      startDate: midWeekStart,
+      startLocationId: START_POINT_ID,
+      subjects,
+      locations: [library],
+      fixedEvents: [],
+      settings: baseSettings,
+      travelTimeFn: flatTravelTimeFn,
+    });
+
+    // 週の前半(月・火)にはブロックが一切生成されない
+    expect(blocksByDate(blocks, WEEK_START).length).toBe(0);
+    expect(blocksByDate(blocks, addDaysToDate(WEEK_START, 1)).length).toBe(0);
+
+    // 残り5日(水〜日)それぞれに60分ずつ均等配分される
+    for (let d = 2; d < 7; d++) {
+      const date = addDaysToDate(WEEK_START, d);
+      const studyMin = blocksByDate(blocks, date)
+        .filter((b) => b.type === "study")
+        .reduce((acc, b) => acc + (toMinutes(b.endsAt) - toMinutes(b.startsAt)), 0);
+      expect(studyMin, `${date} の勉強時間`).toBe(60);
+    }
+  });
+
   it("1日の可処分時間が大きくても、週の後半の日にstudyブロックが0件にならない", () => {
     // 実際に発生したバグの再現データ: 週の合計ノルマ(700分)に対し1日の可処分時間が
     // 非常に大きい（起床8:00〜終了21:00、移動一律15分、営業9:00-21:00）ため、

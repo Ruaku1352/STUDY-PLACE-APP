@@ -1,9 +1,7 @@
-import { generateDay, type SubjectState } from "./core";
-import { computeDailyLimits } from "./dailyBudget";
-import { addDaysToDate, toMinutes } from "./time";
-import type { GenerateWeekInput, GenerateWeekResult, QuotaWarning, ScheduleBlock } from "./types";
-
-const DAYS_IN_WEEK = 7;
+import type { SubjectState } from "./core";
+import { generateDaysInRange } from "./dayRange";
+import { toMinutes } from "./time";
+import type { GenerateWeekInput, GenerateWeekResult, ScheduleBlock } from "./types";
 
 export interface RescheduleInput extends GenerateWeekInput {
   /** この日付（含む）から週末までを再生成する */
@@ -27,45 +25,15 @@ export function reschedule(input: RescheduleInput): GenerateWeekResult {
     dailyLimit: 0,
   }));
 
-  const includedDayIndices = Array.from({ length: DAYS_IN_WEEK }, (_, d) => d).filter(
-    (d) => addDaysToDate(input.weekStartDate, d) >= input.fromDate,
-  );
-  const dailyLimits = computeDailyLimits(
-    subjectStates.map((s) => ({ id: s.subject.id, quotaMin: s.remaining })),
-    includedDayIndices.length,
-  );
-
-  const usageHistory = [...(input.recentlyUsedLocationIds ?? [])];
-  const blocks: ScheduleBlock[] = [];
-
-  includedDayIndices.forEach((d, spreadIndex) => {
-    for (const state of subjectStates) {
-      state.dailyLimit = dailyLimits.get(state.subject.id)?.[spreadIndex] ?? 0;
-    }
-
-    const date = addDaysToDate(input.weekStartDate, d);
-    blocks.push(
-      ...generateDay({
-        date,
-        startLocation: input.startLocationId,
-        subjectStates,
-        locations: input.locations,
-        fixedEvents: input.fixedEvents,
-        settings: input.settings,
-        travelTimeFn: input.travelTimeFn,
-        usageHistory,
-      }),
-    );
+  return generateDaysInRange({
+    weekStartDate: input.weekStartDate,
+    startDate: input.fromDate,
+    startLocationId: input.startLocationId,
+    subjectStates,
+    locations: input.locations,
+    fixedEvents: input.fixedEvents,
+    settings: input.settings,
+    travelTimeFn: input.travelTimeFn,
+    recentlyUsedLocationIds: input.recentlyUsedLocationIds,
   });
-
-  const warnings: QuotaWarning[] = subjectStates
-    .filter((s) => s.remaining > 0)
-    .map((s) => ({
-      type: "quota_exceeded",
-      subjectId: s.subject.id,
-      shortfallMin: s.remaining,
-      message: `${s.subject.name} のノルマに対して ${s.remaining} 分割り当てられませんでした`,
-    }));
-
-  return { blocks, warnings };
 }

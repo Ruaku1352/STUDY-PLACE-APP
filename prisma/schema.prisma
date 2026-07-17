@@ -66,6 +66,8 @@ model WeeklyPlan {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   weekStartDate DateTime
+  /** 実際に生成を開始した日。週の途中から設定した場合はその日、通常はweekStartDateと同じ。 */
+  startDate     DateTime?
   // 優先順位: subjectId の配列 (JSON)
   priorities    Json
   /** 今週の抽選対象とする場所IDの配列(JSON)。null/空配列 = 全場所（後方互換のデフォルト）。 */

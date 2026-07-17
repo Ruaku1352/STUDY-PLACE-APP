@@ -39,4 +39,18 @@ describe("generateRandomInitialProposal", () => {
     expect(result.subjects).toHaveLength(2);
     expect(result.subjects.every((s) => s.reason.length > 0)).toBe(true);
   });
+
+  it("残り日数が7未満なら、その割合でノルマを控えめに縮小する", () => {
+    // 残り3.5日相当(半分)、randomFn=0.5で変動なしのケース
+    const result = generateRandomInitialProposal(subjects, () => 0.5, 3.5);
+    const math = result.subjects.find((s) => s.subjectId === "math")!;
+    expect(math.proposedQuotaMin).toBeLessThan(300);
+    expect(math.proposedQuotaMin).toBeCloseTo(150, -1);
+  });
+
+  it("残り日数を省略した場合は7日分（縮小なし）として扱う", () => {
+    const result = generateRandomInitialProposal(subjects, () => 0.5);
+    const math = result.subjects.find((s) => s.subjectId === "math")!;
+    expect(math.proposedQuotaMin).toBe(300);
+  });
 });

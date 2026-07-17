@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { combineDateAndTime, dateStringToDate } from "@/lib/date";
+import { combineDateAndTime, dateStringToDate, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { buildWeeklyReviewInput } from "@/lib/ai/buildWeeklyReviewInput";
 import { generateRandomInitialProposal, generateWeeklyProposal, type WeeklyProposal } from "@/lib/ai/weeklyProposal";
@@ -12,9 +12,16 @@ import { filterLocationPool, validateLocationPoolSize } from "@/lib/locationPool
 import { prisma } from "@/lib/prisma";
 import { schedulerBlockToPrismaCreate } from "@/lib/scheduleBlocks";
 import { getDefaultStartPointId } from "@/lib/startPoints";
+import { computeIncludedDayIndices } from "@/lib/scheduler/dayRange";
 import { generateWeek } from "@/lib/scheduler/generateWeek";
-import { addDaysToDate } from "@/lib/scheduler/time";
+import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
 import type { QuotaWarning } from "@/lib/scheduler/types";
+
+/** 週の途中に設定した場合はその日、そうでなければweekStartDateをそのまま返す。 */
+function resolveEffectiveStartDate(weekStartDate: string, weekEndDate: string): string {
+  const today = todayDateString();
+  return today >= weekStartDate && today <= weekEndDate ? today : weekStartDate;
+}
 
 export interface GeneratePlanResult {
   warnings: QuotaWarning[];
@@ -34,15 +41,19 @@ export async function generatePlan(
 ): Promise<GeneratePlanResult> {
   const userId = await getCurrentUserId();
 
+  const weekEndDate = addDaysToDate(weekStartDate, 6);
+  const startDate = resolveEffectiveStartDate(weekStartDate, weekEndDate);
+
   await prisma.weeklyPlan.upsert({
     where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
     create: {
       userId,
       weekStartDate: dateStringToDate(weekStartDate),
+      startDate: dateStringToDate(startDate),
       priorities: orderedSubjectIds,
       locationPoolJson: locationPoolIds,
     },
-    update: { priorities: orderedSubjectIds, locationPoolJson: locationPoolIds },
+    update: { startDate: dateStringToDate(startDate), priorities: orderedSubjectIds, locationPoolJson: locationPoolIds },
   });
 
   const startPointId = await getDefaultStartPointId(userId);
@@ -51,16 +62,17 @@ export async function generatePlan(
   const pooledLocations = filterLocationPool(input.locations, locationPoolIds);
   validateLocationPoolSize(input.locations.length, pooledLocations.length);
 
-  const result = generateWeek({ ...input, locations: pooledLocations });
+  const result = generateWeek({ ...input, locations: pooledLocations, startDate });
 
-  const weekEndDate = addDaysToDate(weekStartDate, 6);
-  const rangeStart = dateStringToDate(weekStartDate);
+  const rangeStart = dateStringToDate(startDate);
   const rangeEnd = combineDateAndTime(weekEndDate, "23:59");
 
   const oldBlocks = await prisma.scheduleBlock.findMany({
     where: { userId, date: { gte: rangeStart, lte: rangeEnd } },
     select: { gcalEventId: true },
   });
+
+  const includedDates = computeIncludedDayIndices(weekStartDate, startDate).map((d) => addDaysToDate(weekStartDate, d));
 
   await prisma.$transaction([
     prisma.scheduleBlock.deleteMany({ where: { userId, date: { gte: rangeStart, lte: rangeEnd } } }),
@@ -69,9 +81,9 @@ export async function generatePlan(
       data: result.blocks.map((b) => schedulerBlockToPrismaCreate(userId, b)),
     }),
     prisma.dayState.createMany({
-      data: Array.from({ length: 7 }, (_, i) => ({
+      data: includedDates.map((d) => ({
         userId,
-        date: dateStringToDate(addDaysToDate(weekStartDate, i)),
+        date: dateStringToDate(d),
         rerollUsed: false,
         gaveUp: false,
       })),
@@ -134,13 +146,17 @@ export async function generateAiProposal(weekStartDate: string): Promise<{ propo
     const subjects = await prisma.subject.findMany({ where: { userId } });
     if (subjects.length === 0) return { proposal: null };
 
+    const weekEndDate = addDaysToDate(weekStartDate, 6);
+    const startDate = resolveEffectiveStartDate(weekStartDate, weekEndDate);
+    const remainingDaysInWeek = 7 - weekdayIndex(startDate);
+
     const subjectsMeta = subjects.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin, timeSlot: s.timeSlot }));
     const reviewInput = await buildWeeklyReviewInput(userId, weekStartDate);
     // 実績データが1週間も無い初回はAIに判断材料が無いため、AIを呼ばずランダムに初期提案を作成する
     const proposal =
       reviewInput.weeksObserved === 0
-        ? generateRandomInitialProposal(subjectsMeta)
-        : await generateWeeklyProposal(reviewInput, subjectsMeta);
+        ? generateRandomInitialProposal(subjectsMeta, Math.random, remainingDaysInWeek)
+        : await generateWeeklyProposal(reviewInput, subjectsMeta, remainingDaysInWeek);
 
     await prisma.weeklyPlan.upsert({
       where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },

@@ -1,6 +1,7 @@
-import { combineDateAndTime, dateStringToDate, todayDateString } from "@/lib/date";
+import { combineDateAndTime, dateStringToDate, dateToDateString, todayDateString } from "@/lib/date";
 import { getCurrentUserId } from "@/lib/currentUser";
 import { calcBookProgress } from "@/lib/books";
+import { computeIdealPacePercent } from "@/lib/idealPace";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
 import { ProgressChart, type SubjectProgress } from "./ProgressChart";
@@ -12,7 +13,7 @@ export default async function DashboardPage() {
   const weekStartDate = addDaysToDate(today, -weekdayIndex(today));
   const weekEndDate = addDaysToDate(weekStartDate, 6);
 
-  const [subjects, studyBlocks, books, streak] = await Promise.all([
+  const [subjects, studyBlocks, books, streak, weeklyPlan] = await Promise.all([
     prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.scheduleBlock.findMany({
       where: {
@@ -23,9 +24,14 @@ export default async function DashboardPage() {
     }),
     prisma.book.findMany({ where: { userId }, include: { readingLogs: true }, orderBy: { createdAt: "asc" } }),
     prisma.streak.findUnique({ where: { userId } }),
+    prisma.weeklyPlan.findUnique({
+      where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
+    }),
   ]);
 
-  const idealPacePercent = Math.round(((weekdayIndex(today) + 1) / 7) * 100);
+  // 週の途中から設定した場合はその実際の開始日を、月曜起点固定にせず理想ペースの分母にする
+  const effectiveStartDate = weeklyPlan?.startDate ? dateToDateString(weeklyPlan.startDate) : weekStartDate;
+  const idealPacePercent = computeIdealPacePercent(effectiveStartDate, weekEndDate, today);
 
   const data: SubjectProgress[] = subjects.map((s) => {
     const actualMin = studyBlocks

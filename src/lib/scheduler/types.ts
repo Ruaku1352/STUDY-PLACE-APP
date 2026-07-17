@@ -70,7 +70,9 @@ export interface QuotaWarning {
 }
 
 export interface GenerateWeekInput {
-  weekStartDate: string; // "YYYY-MM-DD"（月曜想定）
+  weekStartDate: string; // "YYYY-MM-DD"（月曜。WeeklyPlanの週キーとして常にこの値を使う）
+  /** 実際に生成を開始する日（省略時はweekStartDateと同じ=週全体）。週の途中から設定した場合はその日を指定する。 */
+  startDate?: string;
   /** 週間生成時のデフォルト出発地点ID（StartPoint.id）。生成時点では日ごとの上書きは考慮しない。 */
   startLocationId: string;
   subjects: SchedulerSubject[];

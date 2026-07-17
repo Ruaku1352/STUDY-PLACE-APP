@@ -37,12 +37,21 @@ export default async function WeeklyPlanPage() {
 
   const savedLocationPool = Array.isArray(weeklyPlan?.locationPoolJson) ? (weeklyPlan.locationPoolJson as string[]) : [];
 
+  const today = todayDateString();
+  const remainingDays = 7 - weekdayIndex(today);
+  const isMidWeek = remainingDays < 7;
+
   return (
     <div>
       <h1>週はじめ優先順位設定</h1>
       <p className="muted" style={{ marginBottom: "1rem" }}>
         対象週: {weekStartDate} 〜 {addDaysToDate(weekStartDate, 6)}
       </p>
+      {isMidWeek && (
+        <div className="warning-box" style={{ marginBottom: "1rem" }}>
+          今週は残り{remainingDays}日です。この日数でノルマを設定してください。
+        </div>
+      )}
       <AiProposalCard
         weekStartDate={weekStartDate}
         initialProposal={weeklyPlan?.aiProposalJson ? (weeklyPlan.aiProposalJson as unknown as WeeklyProposal) : null}

@@ -54,12 +54,16 @@ const SYSTEM_PROMPT = `あなたは勉強スケジュール管理アプリの週
 - 変更が不要と判断した科目は proposedQuotaMin を現在値のまま、timeSlotChange は "no_change" とし、その旨を理由に明記すること。
 - confidence は weeksObserved が2週未満なら "provisional"、それ以上なら "established" とすること。
 - reason は日本語で1〜2文の簡潔な説明にすること。
-- overallComment は先週の振り返りを踏まえた全体コメント（2〜3文、日本語）にすること。`;
+- overallComment は先週の振り返りを踏まえた全体コメント（2〜3文、日本語）にすること。
+- 入力の remainingDaysInWeek が7未満の場合、週の途中からの設定であることを意味する。
+  proposedQuotaMinは7日分ではなくremainingDaysInWeek日分の現実的な量にすること
+  （目安: 通常の提案値 × remainingDaysInWeek/7 程度。無理に7日分の量を残り日数に詰め込まないこと）。`;
 
-/** 週次実績データをClaude APIに渡し、来週のノルマ提案をJSONで受け取る。 */
+/** 週次実績データをClaude APIに渡し、来週のノルマ提案をJSONで受け取る。remainingDaysInWeekは対象週の残り日数（通常7、週の途中の設定なら7未満）。 */
 export async function generateWeeklyProposal(
   input: WeeklyReviewInput,
   subjects: ProposalSubjectMeta[],
+  remainingDaysInWeek = 7,
 ): Promise<WeeklyProposal> {
   const client = getAnthropicClient();
 
@@ -68,6 +72,7 @@ export async function generateWeeklyProposal(
     blocksObserved: input.blocksObserved,
     rerollCount: input.rerollCount,
     giveUpCount: input.giveUpCount,
+    remainingDaysInWeek,
     subjects: input.subjects.map((s) => {
       const meta = subjects.find((m) => m.id === s.subjectId);
       return {
@@ -105,23 +110,29 @@ const MIN_RANDOM_QUOTA_MIN = 30;
  * 実績データが1週間も無い初回用の提案を、AIを呼ばずにランダムに生成する純粋関数。
  * ノルマは現在値の±15%の範囲でランダムに揺らす（ガチャらしい遊び要素として）。
  * タグ（morning/anytime）は変更しない。乱数はMath.randomではなくrandomFnとして注入可能にし、テスト容易性を確保する。
+ * remainingDaysInWeekが7未満（週の途中の設定）の場合、その割合でノルマを控えめに縮小する。
  */
 export function generateRandomInitialProposal(
   subjects: ProposalSubjectMeta[],
   randomFn: () => number = Math.random,
+  remainingDaysInWeek = 7,
 ): WeeklyProposal {
+  const scale = Math.min(1, remainingDaysInWeek / 7);
   return {
     overallComment:
       "まだ実績データが無いため、今回はAI分析ではなくランダムに初回のノルマを作成しました。数値はあくまで参考です。来週以降、実績が貯まるとAIが分析して提案します。",
     confidence: "provisional",
     subjects: subjects.map((s) => {
       const variation = 1 + (randomFn() * 2 - 1) * RANDOM_QUOTA_VARIATION_RATIO;
-      const proposedQuotaMin = Math.max(MIN_RANDOM_QUOTA_MIN, Math.round((s.weeklyQuotaMin * variation) / 5) * 5);
+      const proposedQuotaMin = Math.max(MIN_RANDOM_QUOTA_MIN, Math.round((s.weeklyQuotaMin * scale * variation) / 5) * 5);
       return {
         subjectId: s.id,
         proposedQuotaMin,
         timeSlotChange: "no_change",
-        reason: "実績データが無いため、現在のノルマを基準にランダムに設定しました。",
+        reason:
+          scale < 1
+            ? "実績データが無いため、残り日数に合わせて現在のノルマを縮小してランダムに設定しました。"
+            : "実績データが無いため、現在のノルマを基準にランダムに設定しました。",
       };
     }),
   };
