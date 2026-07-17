@@ -8,6 +8,7 @@ import { generateRandomInitialProposal, generateWeeklyProposal, type WeeklyPropo
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import { createCalendarEventsForBlocks, deleteCalendarEventsByIds } from "@/lib/google/calendarSync";
 import { buildSyncableBlocks } from "@/lib/google/syncableBlocks";
+import { filterLocationPool, validateLocationPoolSize } from "@/lib/locationPool";
 import { prisma } from "@/lib/prisma";
 import { schedulerBlockToPrismaCreate } from "@/lib/scheduleBlocks";
 import { getDefaultStartPointId } from "@/lib/startPoints";
@@ -20,23 +21,37 @@ export interface GeneratePlanResult {
 }
 
 /**
- * 週の優先順位を保存し、そのままプランを生成する。
+ * 週の優先順位・場所プールを保存し、そのままプランを生成する。
  * 生成した ScheduleBlock は DB に保存するのみで、呼び出し元には warnings しか返さない
  * （未開封日の場所・時間割をクライアントに一切送らないため）。
  * Googleカレンダーには全ブロックをマスクイベントとして書き出す。
+ * locationPoolIds が空（または未指定）なら全場所が対象（後方互換のデフォルト）。
  */
-export async function generatePlan(weekStartDate: string, orderedSubjectIds: string[]): Promise<GeneratePlanResult> {
+export async function generatePlan(
+  weekStartDate: string,
+  orderedSubjectIds: string[],
+  locationPoolIds: string[] = [],
+): Promise<GeneratePlanResult> {
   const userId = await getCurrentUserId();
 
   await prisma.weeklyPlan.upsert({
     where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
-    create: { userId, weekStartDate: dateStringToDate(weekStartDate), priorities: orderedSubjectIds },
-    update: { priorities: orderedSubjectIds },
+    create: {
+      userId,
+      weekStartDate: dateStringToDate(weekStartDate),
+      priorities: orderedSubjectIds,
+      locationPoolJson: locationPoolIds,
+    },
+    update: { priorities: orderedSubjectIds, locationPoolJson: locationPoolIds },
   });
 
   const startPointId = await getDefaultStartPointId(userId);
   const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
-  const result = generateWeek(input);
+
+  const pooledLocations = filterLocationPool(input.locations, locationPoolIds);
+  validateLocationPoolSize(input.locations.length, pooledLocations.length);
+
+  const result = generateWeek({ ...input, locations: pooledLocations });
 
   const weekEndDate = addDaysToDate(weekStartDate, 6);
   const rangeStart = dateStringToDate(weekStartDate);
@@ -148,7 +163,11 @@ export async function generateAiProposal(weekStartDate: string): Promise<{ propo
 }
 
 /** AI提案の値をSubjectに反映してから、通常のプラン生成を行う。 */
-export async function applyAiProposal(weekStartDate: string, orderedSubjectIds: string[]): Promise<GeneratePlanResult> {
+export async function applyAiProposal(
+  weekStartDate: string,
+  orderedSubjectIds: string[],
+  locationPoolIds: string[] = [],
+): Promise<GeneratePlanResult> {
   const userId = await getCurrentUserId();
 
   const weeklyPlan = await prisma.weeklyPlan.findUnique({
@@ -170,5 +189,5 @@ export async function applyAiProposal(weekStartDate: string, orderedSubjectIds: 
     );
   }
 
-  return generatePlan(weekStartDate, orderedSubjectIds);
+  return generatePlan(weekStartDate, orderedSubjectIds, locationPoolIds);
 }

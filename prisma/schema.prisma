@@ -67,6 +67,8 @@ model WeeklyPlan {
   weekStartDate DateTime
   // 優先順位: subjectId の配列 (JSON)
   priorities    Json
+  /** 今週の抽選対象とする場所IDの配列(JSON)。null/空配列 = 全場所（後方互換のデフォルト）。 */
+  locationPoolJson Json?
   // 週次AIノルマ提案のキャッシュ（WeeklyProposal型）。週ごとに1回だけ生成する。
   aiProposalJson Json?
   aiProposalAt   DateTime?
