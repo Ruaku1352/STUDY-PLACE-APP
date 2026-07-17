@@ -3,6 +3,7 @@ import { combineDateAndTime, dateStringToDate, dateToHHMM, todayDateString } fro
 import { getCurrentUserId } from "@/lib/currentUser";
 import { prisma } from "@/lib/prisma";
 import { resolveTodayWeatherForUser } from "@/lib/weather/resolveTodayWeather";
+import { isWeeklyPrepWindow, nextWeekStartDateFrom } from "@/lib/weeklyPrep";
 import {
   deleteBlockManual,
   giveUpToday,
@@ -26,18 +27,36 @@ export default async function TodayPage() {
   const userId = await getCurrentUserId();
   const today = todayDateString();
 
-  const dayState = await prisma.dayState.findUnique({
-    where: { userId_date: { userId, date: dateStringToDate(today) } },
-  });
+  const [dayState, nextWeekPlan] = await Promise.all([
+    prisma.dayState.findUnique({ where: { userId_date: { userId, date: dateStringToDate(today) } } }),
+    prisma.weeklyPlan.findUnique({
+      where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(nextWeekStartDateFrom(today)) } },
+    }),
+  ]);
+
+  const showPrepBanner = isWeeklyPrepWindow() && !nextWeekPlan;
+  const prepBanner = showPrepBanner && (
+    <Link href="/weekly-plan" className="card" style={{ display: "block", marginBottom: "1rem" }}>
+      🎰 来週のガチャの準備をしよう
+    </Link>
+  );
 
   if (!dayState) {
     return (
-      <div className="card">
-        <h1>今日のスケジュール</h1>
-        <p>今週のプランがまだ生成されていません。</p>
-        <p className="muted" style={{ marginTop: "0.5rem" }}>
-          <Link href="/weekly-plan">週はじめ優先順位設定</Link> から今週のプランを生成してください。
-        </p>
+      <div>
+        {prepBanner}
+        <div className="card" style={{ textAlign: "center" }}>
+          <p style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }} aria-hidden="true">
+            🎰
+          </p>
+          <h1>準備中</h1>
+          <p className="muted" style={{ marginBottom: "1rem" }}>
+            今週のプランがまだ生成されていません。ノルマ・優先順位・場所プールを設定すると、ガチャが引けるようになります。
+          </p>
+          <Link href="/weekly-plan" className="button-primary button-block">
+            週はじめ設定へ
+          </Link>
+        </div>
       </div>
     );
   }
@@ -53,6 +72,7 @@ export default async function TodayPage() {
 
     return (
       <div>
+        {prepBanner}
         {startPoints.length > 0 && (
           <StartPointSelector
             startPoints={startPoints.map((sp) => ({ id: sp.id, name: sp.name }))}
@@ -118,6 +138,7 @@ export default async function TodayPage() {
 
   return (
     <div>
+      {prepBanner}
       <h1>今日のスケジュール</h1>
       <p className="muted" style={{ marginBottom: "1rem" }}>
         {today}

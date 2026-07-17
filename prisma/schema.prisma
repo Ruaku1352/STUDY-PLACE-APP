@@ -33,6 +33,7 @@ model User {
   books        Book[]
   readingLogs  ReadingLog[]
   streak       Streak?
+  prepReminders PrepReminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -291,4 +292,18 @@ model Streak {
   freezeUsedInWeek  Boolean   @default(false)
 
   updatedAt DateTime @updatedAt
+}
+
+/** 日曜18時の「来週の準備」Googleカレンダーリマインダーの冪等性マーカー(Vercel Cronから作成)。 */
+model PrepReminder {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** リマインダーが促す対象週（来週）の月曜日 */
+  weekStartDate DateTime
+  gcalEventId   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStartDate])
 }
