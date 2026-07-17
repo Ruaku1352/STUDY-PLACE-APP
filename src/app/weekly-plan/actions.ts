@@ -10,6 +10,7 @@ import { createCalendarEventsForBlocks, deleteCalendarEventsByIds } from "@/lib/
 import { buildSyncableBlocks } from "@/lib/google/syncableBlocks";
 import { prisma } from "@/lib/prisma";
 import { schedulerBlockToPrismaCreate } from "@/lib/scheduleBlocks";
+import { getDefaultStartPointId } from "@/lib/startPoints";
 import { generateWeek } from "@/lib/scheduler/generateWeek";
 import { addDaysToDate } from "@/lib/scheduler/time";
 import type { QuotaWarning } from "@/lib/scheduler/types";
@@ -33,7 +34,8 @@ export async function generatePlan(weekStartDate: string, orderedSubjectIds: str
     update: { priorities: orderedSubjectIds },
   });
 
-  const input = await buildSchedulerInput(userId, weekStartDate);
+  const startPointId = await getDefaultStartPointId(userId);
+  const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
   const result = generateWeek(input);
 
   const weekEndDate = addDaysToDate(weekStartDate, 6);

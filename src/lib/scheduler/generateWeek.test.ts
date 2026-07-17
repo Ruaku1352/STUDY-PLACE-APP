@@ -8,6 +8,7 @@ import {
   library,
   libraryAlt,
   makeRecordingTravelTimeFn,
+  START_POINT_ID,
   WEEK_START,
 } from "./testFixtures";
 import type { ScheduleBlock, SchedulerSubject } from "./types";
@@ -21,6 +22,7 @@ describe("generateWeek", () => {
     const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 300, priority: 0, timeSlot: "anytime" }];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library, cafe],
       fixedEvents: [],
@@ -50,6 +52,7 @@ describe("generateWeek", () => {
     ];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library],
       fixedEvents: [],
@@ -68,6 +71,7 @@ describe("generateWeek", () => {
     const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 1200, priority: 0, timeSlot: "anytime" }];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [cafe, library],
       fixedEvents: [],
@@ -118,6 +122,7 @@ describe("generateWeek", () => {
     const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 300, priority: 0, timeSlot: "anytime" }];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library, libraryAlt],
       fixedEvents: [
@@ -141,6 +146,7 @@ describe("generateWeek", () => {
     const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 2000, priority: 0, timeSlot: "anytime" }];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library],
       fixedEvents: [],
@@ -161,6 +167,7 @@ describe("generateWeek", () => {
     const tightSettings = { ...baseSettings, outsideEnd: "10:30" };
     const { blocks, warnings } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library],
       fixedEvents: [],
@@ -183,6 +190,7 @@ describe("generateWeek", () => {
     const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 300, priority: 0, timeSlot: "anytime" }];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library],
       fixedEvents: [
@@ -199,6 +207,44 @@ describe("generateWeek", () => {
     expect(gapBlocks.length).toBe(0);
   });
 
+  it("出発地点を切り替えると、その出発地点からの移動時間が使われる", () => {
+    const perStartTravelMin: Record<string, number> = { "start-a": 10, "start-b": 40 };
+    const startAwareTravelTimeFn = (from: string, to: string) => {
+      if (from === to) return 0;
+      if (from in perStartTravelMin) return perStartTravelMin[from];
+      return 15;
+    };
+    // 週7日均等配分で毎日60分ずつ確保されるよう、ぴったり7日分(420分)のノルマにする
+    const subjects: SchedulerSubject[] = [{ id: "s1", name: "英語", weeklyQuotaMin: 420, priority: 0, timeSlot: "anytime" }];
+
+    const { blocks: blocksA } = generateWeek({
+      weekStartDate: WEEK_START,
+      startLocationId: "start-a",
+      subjects,
+      locations: [library],
+      fixedEvents: [],
+      settings: baseSettings,
+      travelTimeFn: startAwareTravelTimeFn,
+    });
+    const { blocks: blocksB } = generateWeek({
+      weekStartDate: WEEK_START,
+      startLocationId: "start-b",
+      subjects,
+      locations: [library],
+      fixedEvents: [],
+      settings: baseSettings,
+      travelTimeFn: startAwareTravelTimeFn,
+    });
+
+    const firstMove = (blocks: typeof blocksA) =>
+      blocksByDate(blocks, WEEK_START).find((b) => b.type === "move")!;
+
+    const moveA = firstMove(blocksA);
+    const moveB = firstMove(blocksB);
+    expect(toMinutes(moveA.endsAt) - toMinutes(moveA.startsAt)).toBe(10);
+    expect(toMinutes(moveB.endsAt) - toMinutes(moveB.startsAt)).toBe(40);
+  });
+
   it("1日の可処分時間が大きくても、週の後半の日にstudyブロックが0件にならない", () => {
     // 実際に発生したバグの再現データ: 週の合計ノルマ(700分)に対し1日の可処分時間が
     // 非常に大きい（起床8:00〜終了21:00、移動一律15分、営業9:00-21:00）ため、
@@ -210,6 +256,7 @@ describe("generateWeek", () => {
     ];
     const { blocks } = generateWeek({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library, libraryAlt, cafe],
       fixedEvents: [],

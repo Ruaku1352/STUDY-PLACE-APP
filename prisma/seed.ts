@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { fetchOpeningHours, resolvePlaceId } from "@/lib/google/places";
+import { fetchOpeningHours, resolveAddressLocation, resolvePlaceId } from "@/lib/google/places";
 import { prisma } from "@/lib/prisma";
 
 // ALLOWED_EMAILS の先頭（自分のGoogleアカウント）をシード対象にする
@@ -36,15 +36,34 @@ async function main() {
     where: { userId: user.id },
     create: {
       userId: user.id,
-      homeAddress: HOME_ADDRESS,
       wakeWeekday: "08:00",
       wakeWeekend: "09:00",
       morningEnd: "12:00",
       outsideEnd: "21:00",
     },
-    update: { homeAddress: HOME_ADDRESS },
+    update: {},
   });
-  console.log(`Settings: 自宅住所を「${HOME_ADDRESS}」に設定しました`);
+
+  const homeLocation = await resolveAddressLocation(HOME_ADDRESS).catch(() => null);
+  const existingDefault = await prisma.startPoint.findFirst({ where: { userId: user.id, isDefault: true } });
+  if (existingDefault) {
+    await prisma.startPoint.update({
+      where: { id: existingDefault.id },
+      data: { address: HOME_ADDRESS, lat: homeLocation?.lat ?? null, lng: homeLocation?.lng ?? null },
+    });
+  } else {
+    await prisma.startPoint.create({
+      data: {
+        userId: user.id,
+        name: "自宅",
+        address: HOME_ADDRESS,
+        lat: homeLocation?.lat ?? null,
+        lng: homeLocation?.lng ?? null,
+        isDefault: true,
+      },
+    });
+  }
+  console.log(`StartPoint: デフォルト出発地点を「${HOME_ADDRESS}」に設定しました`);
 
   for (const loc of LOCATIONS) {
     const existing = await prisma.location.findFirst({ where: { userId: user.id, name: loc.name } });

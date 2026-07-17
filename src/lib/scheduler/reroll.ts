@@ -11,6 +11,8 @@ import type {
 
 export interface RerollInput {
   date: string;
+  /** その日の出発地点キー（StartPoint.id）。 */
+  startLocationId: string;
   /** その日の直前のプラン（科目ごとの分数配分と、避けたい場所を読み取るために使う） */
   previousBlocks: ScheduleBlock[];
   subjects: SchedulerSubject[];
@@ -57,6 +59,7 @@ export function reroll(input: RerollInput): RerollResult {
 
   const blocks = generateDay({
     date: input.date,
+    startLocation: input.startLocationId,
     subjectStates,
     locations,
     fixedEvents: input.fixedEvents,

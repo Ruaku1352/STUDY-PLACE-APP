@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/weekly-plan", label: "週の優先順位" },
   { href: "/subjects", label: "科目" },
   { href: "/locations", label: "場所" },
+  { href: "/start-points", label: "出発地点" },
   { href: "/events", label: "予定" },
   { href: "/settings", label: "設定" },
 ];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reschedule } from "./reschedule";
 import { addDaysToDate, toMinutes } from "./time";
-import { baseSettings, flatTravelTimeFn, library, WEEK_START } from "./testFixtures";
+import { baseSettings, flatTravelTimeFn, library, START_POINT_ID, WEEK_START } from "./testFixtures";
 import type { ScheduleBlock, SchedulerSubject } from "./types";
 
 describe("reschedule", () => {
@@ -23,6 +23,7 @@ describe("reschedule", () => {
 
     const { blocks, warnings } = reschedule({
       weekStartDate: WEEK_START,
+      startLocationId: START_POINT_ID,
       subjects,
       locations: [library],
       fixedEvents: [],

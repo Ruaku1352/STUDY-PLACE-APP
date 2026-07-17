@@ -10,10 +10,12 @@ import {
   rerollToday,
   reschedulePlan,
   revealToday,
+  setStartPointForToday,
   updateBlockManual,
   updateBlockStatus,
 } from "./actions";
 import { GachaMachine } from "./gacha/GachaMachine";
+import { StartPointSelector } from "./StartPointSelector";
 import { TodayClient, type BookOption, type TodayBlock } from "./TodayClient";
 
 // 開封時のミッション文生成（Claude API呼び出し）がVercelのデフォルト実行時間上限（10秒）を
@@ -45,14 +47,27 @@ export default async function TodayPage() {
   const streakDays = streak?.currentCount ?? 0;
 
   if (!isRevealed) {
+    const startPoints = await prisma.startPoint.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+    const defaultStartPoint = startPoints.find((sp) => sp.isDefault) ?? startPoints[0];
+    const currentStartPointId = dayState.startPointId ?? defaultStartPoint?.id ?? "";
+
     return (
-      <GachaMachine
-        mode="reveal"
-        medalsRemaining={2}
-        streakDays={streakDays}
-        action={revealToday}
-        giveUpAction={giveUpToday}
-      />
+      <div>
+        {startPoints.length > 0 && (
+          <StartPointSelector
+            startPoints={startPoints.map((sp) => ({ id: sp.id, name: sp.name }))}
+            currentStartPointId={currentStartPointId}
+            setStartPointAction={setStartPointForToday}
+          />
+        )}
+        <GachaMachine
+          mode="reveal"
+          medalsRemaining={2}
+          streakDays={streakDays}
+          action={revealToday}
+          giveUpAction={giveUpToday}
+        />
+      </div>
     );
   }
 

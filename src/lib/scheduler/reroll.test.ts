@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reroll } from "./reroll";
 import { toMinutes } from "./time";
-import { baseSettings, cafe, flatTravelTimeFn, library, libraryAlt, WEEK_START } from "./testFixtures";
+import { baseSettings, cafe, flatTravelTimeFn, library, libraryAlt, START_POINT_ID, WEEK_START } from "./testFixtures";
 import type { ScheduleBlock, SchedulerSubject, TravelTimeFn } from "./types";
 
 describe("reroll", () => {
@@ -22,6 +22,7 @@ describe("reroll", () => {
 
     const { blocks } = reroll({
       date: WEEK_START,
+      startLocationId: START_POINT_ID,
       previousBlocks,
       subjects,
       locations: [library, libraryAlt, cafe],
@@ -59,6 +60,7 @@ describe("reroll", () => {
     it("isRainyがfalseなら重み付け抽選は発動しない", () => {
       const { blocks, rainRuleApplied } = reroll({
         date: WEEK_START,
+        startLocationId: START_POINT_ID,
         previousBlocks,
         subjects,
         locations: [library, libraryAlt, cafe],
@@ -74,6 +76,7 @@ describe("reroll", () => {
     it("isRainyがtrueだと近い場所ほど選ばれやすい重み付けになる（乱数0→最も近い場所）", () => {
       const { blocks, rainRuleApplied } = reroll({
         date: WEEK_START,
+        startLocationId: START_POINT_ID,
         previousBlocks,
         subjects,
         locations: [library, libraryAlt, cafe],
@@ -93,6 +96,7 @@ describe("reroll", () => {
       // randomFn=0.9 → r=4.5 は重みを使い切りcafe(最も遠い場所)に到達する
       const { blocks } = reroll({
         date: WEEK_START,
+        startLocationId: START_POINT_ID,
         previousBlocks,
         subjects,
         locations: [library, libraryAlt, cafe],

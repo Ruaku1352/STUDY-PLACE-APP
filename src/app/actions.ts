@@ -20,6 +20,7 @@ import { prismaBlockToScheduler, schedulerBlockToPrismaCreate } from "@/lib/sche
 import { reroll } from "@/lib/scheduler/reroll";
 import { reschedule } from "@/lib/scheduler/reschedule";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
+import { getDefaultStartPointId } from "@/lib/startPoints";
 import { applyDailyResult } from "@/lib/streak";
 
 function currentWeekStart(today: string): string {
@@ -155,7 +156,8 @@ export async function rerollToday(): Promise<RevealResult> {
   }
 
   const weekStartDate = currentWeekStart(today);
-  const input = await buildSchedulerInput(userId, weekStartDate);
+  const startPointId = dayState.startPointId ?? (await getDefaultStartPointId(userId));
+  const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
 
   // 開封時に取得済みの当日の天気（同日なのでキャッシュから取得され、APIは再度呼ばれない）から
   // 雨の日かどうかを判定し、雨の日ルール（近場優先の重み付け抽選）に反映する。
@@ -168,6 +170,7 @@ export async function rerollToday(): Promise<RevealResult> {
 
   const rerollOutput = reroll({
     date: today,
+    startLocationId: startPointId,
     previousBlocks: previousBlocksRaw.map(prismaBlockToScheduler),
     subjects: input.subjects,
     locations: input.locations,
@@ -213,6 +216,77 @@ export async function rerollToday(): Promise<RevealResult> {
   return result;
 }
 
+/**
+ * 開封前の今日の出発地点を変更し、その出発地点を基準に今日のブロックを再生成する。
+ * リロールとは異なりrerollUsedは消費せず、天気はまだ取得しない（開封時にはじめて取得するため）。
+ * 開封後（revealedAt/gaveUp）は変更できない。
+ */
+export async function setStartPointForToday(startPointId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+
+  const dayState = await prisma.dayState.findUnique({
+    where: { userId_date: { userId, date: dateStringToDate(today) } },
+  });
+  if (!dayState || dayState.revealedAt || dayState.gaveUp) {
+    throw new Error("開封後は出発地点を変更できません");
+  }
+
+  const startPoint = await prisma.startPoint.findFirst({ where: { id: startPointId, userId } });
+  if (!startPoint) {
+    throw new Error("出発地点が見つかりません");
+  }
+
+  const weekStartDate = currentWeekStart(today);
+  const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
+
+  const previousBlocksRaw = await prisma.scheduleBlock.findMany({
+    where: { userId, date: dateStringToDate(today) },
+  });
+
+  const rerollOutput = reroll({
+    date: today,
+    startLocationId: startPointId,
+    previousBlocks: previousBlocksRaw.map(prismaBlockToScheduler),
+    subjects: input.subjects,
+    locations: input.locations,
+    fixedEvents: input.fixedEvents.filter((e) => e.date === today),
+    settings: input.settings,
+    travelTimeFn: input.travelTimeFn,
+    recentlyUsedLocationIds: input.recentlyUsedLocationIds,
+  });
+
+  await prisma.$transaction([
+    prisma.scheduleBlock.deleteMany({ where: { userId, date: dateStringToDate(today) } }),
+    prisma.scheduleBlock.createMany({
+      data: rerollOutput.blocks.map((b) => schedulerBlockToPrismaCreate(userId, b)),
+    }),
+    prisma.dayState.update({ where: { id: dayState.id }, data: { startPointId } }),
+  ]);
+
+  try {
+    await deleteCalendarEventsByIds(
+      userId,
+      previousBlocksRaw.map((b) => b.gcalEventId),
+    );
+
+    const newBlocks = await prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today) } });
+    const syncable = await buildSyncableBlocks(userId, newBlocks);
+    // 開封前なのでマスクイベントとして作り直す
+    const eventIdByBlockId = await createCalendarEventsForBlocks(userId, syncable, new Set());
+
+    await Promise.all(
+      Array.from(eventIdByBlockId.entries()).map(([blockId, gcalEventId]) =>
+        prisma.scheduleBlock.update({ where: { id: blockId }, data: { gcalEventId } }),
+      ),
+    );
+  } catch (e) {
+    console.error("[setStartPointForToday] Googleカレンダーの同期に失敗しました", e);
+  }
+
+  revalidatePath("/");
+}
+
 export async function reschedulePlan(): Promise<void> {
   const userId = await getCurrentUserId();
   const today = todayDateString();
@@ -238,7 +312,8 @@ export async function reschedulePlan(): Promise<void> {
     },
   });
 
-  const input = await buildSchedulerInput(userId, weekStartDate);
+  const startPointId = await getDefaultStartPointId(userId);
+  const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
   const result = reschedule({
     ...input,
     fromDate,

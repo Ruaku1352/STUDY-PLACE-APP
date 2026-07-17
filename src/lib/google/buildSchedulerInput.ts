@@ -19,13 +19,20 @@ const RECENT_LOCATION_LOOKBACK_DAYS = 14;
  * DB・Google APIから週間プラン生成に必要な入力（GenerateWeekInput）を組み立てる。
  * 移動時間・営業時間はすべてここで事前解決し、scheduler 本体には純粋な同期関数として渡す
  * （キャッシュなしのループ呼び出しを避けるため）。
+ * startPointIdはその生成が起点とする出発地点（週間生成時はデフォルト出発地点、
+ * 単日再生成時はその日の選択済み出発地点）。
  */
-export async function buildSchedulerInput(userId: string, weekStartDate: string): Promise<GenerateWeekInput> {
-  const [settings, subjects, locations, weeklyPlan] = await Promise.all([
+export async function buildSchedulerInput(
+  userId: string,
+  weekStartDate: string,
+  startPointId: string,
+): Promise<GenerateWeekInput> {
+  const [settings, subjects, locations, weeklyPlan, startPoint] = await Promise.all([
     prisma.settings.findUniqueOrThrow({ where: { userId } }),
     prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.location.findMany({ where: { userId } }),
     prisma.weeklyPlan.findUnique({ where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } } }),
+    prisma.startPoint.findFirstOrThrow({ where: { id: startPointId, userId } }),
   ]);
 
   const weekEndDate = addDaysToDate(weekStartDate, 6);
@@ -95,14 +102,14 @@ export async function buildSchedulerInput(userId: string, weekStartDate: string)
   }
 
   const endpointFor = (key: string): RouteEndpoint => {
-    if (key === "home") return { address: settings.homeAddress };
+    if (key === startPoint.id) return { address: startPoint.address };
     const loc = locations.find((l) => l.id === key);
     if (loc?.placeId) return { placeId: loc.placeId };
     if (loc) return { address: loc.address };
     throw new Error(`未知の場所キー: ${key}`);
   };
 
-  const travelKeys = ["home", ...locations.map((l) => l.id)];
+  const travelKeys = [startPoint.id, ...locations.map((l) => l.id)];
   const travelMinutesByPair = new Map<string, number>();
 
   for (const fromKey of travelKeys) {
@@ -149,6 +156,7 @@ export async function buildSchedulerInput(userId: string, weekStartDate: string)
 
   return {
     weekStartDate,
+    startLocationId: startPoint.id,
     subjects: schedulerSubjects,
     locations: schedulerLocations,
     fixedEvents: schedulerFixedEvents,

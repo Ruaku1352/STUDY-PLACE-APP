@@ -47,6 +47,7 @@ export function reschedule(input: RescheduleInput): GenerateWeekResult {
     blocks.push(
       ...generateDay({
         date,
+        startLocation: input.startLocationId,
         subjectStates,
         locations: input.locations,
         fixedEvents: input.fixedEvents,

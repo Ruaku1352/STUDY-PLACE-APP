@@ -24,6 +24,7 @@ model User {
   subjects     Subject[]
   weeklyPlans  WeeklyPlan[]
   locations    Location[]
+  startPoints  StartPoint[]
   fixedEvents  FixedEvent[]
   settings     Settings?
   travelCaches TravelCache[]
@@ -107,6 +108,26 @@ model Location {
   @@index([userId])
 }
 
+model StartPoint {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  address   String
+  /** 天気予報取得(Open-Meteo)・移動時間計算用の座標。保存時に住所から自動推測する。 */
+  lat       Float?
+  lng       Float?
+  /** 1ユーザーにつき常に1件だけtrue。日ごとの選択を省略した場合のデフォルト出発地点。 */
+  isDefault Boolean  @default(false)
+
+  dayStates DayState[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 enum FixedEventKind {
   school
   work
@@ -133,10 +154,6 @@ model FixedEvent {
 model Settings {
   userId       String   @id
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  homeAddress  String
-  /** 天気予報取得(Open-Meteo)用の自宅座標。未設定なら天気機能はスキップされる。 */
-  homeLat      Float?
-  homeLng      Float?
   wakeWeekday  String
   wakeWeekend  String
   morningEnd   String   @default("12:00")
@@ -208,6 +225,9 @@ model DayState {
   revealedAt  DateTime?
   rerollUsed  Boolean   @default(false)
   gaveUp      Boolean   @default(false)
+  /** その日の出発地点。null = ユーザーのデフォルト出発地点を使う。開封後は変更しない。 */
+  startPointId String?
+  startPoint   StartPoint? @relation(fields: [startPointId], references: [id])
   /** 開封時に生成する「本日の任務」風の演出テキスト。失敗時は固定文にフォールバックするためnull許容。 */
   missionText String?
   /** 開封時に取得した当日の1時間ごと天気予報(HourlyWeatherPoint[])。同日の再取得はしない（リロール時も再利用）。 */

@@ -9,6 +9,9 @@ export function openAllDays(open: string, close: string): WeeklyOpeningHours {
 
 export const WEEK_START = "2026-01-05"; // 実際に月曜日
 
+/** テスト用の出発地点ID（StartPoint.id相当）。 */
+export const START_POINT_ID = "home";
+
 export const baseSettings: SchedulerSettings = {
   wakeWeekday: "08:00",
   wakeWeekend: "09:00",

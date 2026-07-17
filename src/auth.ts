@@ -9,7 +9,6 @@ const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS ?? "")
   .filter(Boolean);
 
 const DEFAULT_SETTINGS = {
-  homeAddress: "",
   wakeWeekday: "08:00",
   wakeWeekend: "09:00",
   morningEnd: "12:00",

@@ -45,7 +45,7 @@ export interface SchedulerSettings {
   outsideEnd: string; // "HH:MM" 例 "21:00"
 }
 
-/** from/to は "home" または locationId */
+/** from/to は 出発地点ID（StartPoint.id） または locationId */
 export type TravelTimeFn = (from: string, to: string) => number;
 
 export type ScheduleBlockType = "study" | "move" | "break" | "lunch" | "event";
@@ -71,6 +71,8 @@ export interface QuotaWarning {
 
 export interface GenerateWeekInput {
   weekStartDate: string; // "YYYY-MM-DD"（月曜想定）
+  /** 週間生成時のデフォルト出発地点ID（StartPoint.id）。生成時点では日ごとの上書きは考慮しない。 */
+  startLocationId: string;
   subjects: SchedulerSubject[];
   locations: SchedulerLocation[];
   fixedEvents: SchedulerFixedEvent[];
