@@ -789,6 +789,40 @@ button.button-danger {
   font-weight: 600;
 }
 
+/* ミッション文・天気の取得中に表示するプレースホルダー（パルスするグレーの帯）。
+   カードは即座に表示し、生成に時間がかかるミッション文・天気だけ後から差し込むための待機表現。 */
+.gacha-skeleton-block,
+.gacha-skeleton-line {
+  background: var(--border);
+  border-radius: 0.5rem;
+  animation: gacha-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.gacha-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gacha-skeleton-line {
+  height: 0.9rem;
+  width: 100%;
+}
+
+@keyframes gacha-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.gacha-reveal-mission-in {
+  animation: gacha-fade-in 0.35s ease both;
+}
+
 .gacha-knob-group {
   transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1);
 }

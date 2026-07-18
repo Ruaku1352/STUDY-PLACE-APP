@@ -14,13 +14,15 @@ export interface RevealWeather {
   blocks: RevealWeatherBlock[];
 }
 
+/**
+ * 開封演出を即座に表示するための結果。ミッション文（AI生成）・天気（外部API）は
+ * ここには含めず、開封演出をブロックしないよう別途 fetchMissionTextForToday /
+ * fetchWeatherForToday で並行して取得し、解決ししだいカードへ差し込む。
+ */
 export interface RevealResult {
-  missionText: string;
   /** 本日訪れる場所名（重複除去・登場順）。開封後のカード演出でのみ使う。 */
   locationNames: string[];
   totalStudyMin: number;
-  /** 天気予報。自宅座標未設定・取得失敗時はnull（天気なしの通常フロー）。 */
-  weather: RevealWeather | null;
   /** 雨の日ルール（近場優先の重み付け抽選）が発動して場所選びに反映されたか。 */
   rainRuleApplied: boolean;
 }

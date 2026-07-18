@@ -84,22 +84,25 @@ export async function createCalendarEventsForBlocks(
 
   const accessToken = await getValidGoogleAccessToken(userId);
   const firstOfDayIds = computeFirstOfDayIds(syncable);
-  const result = new Map<string, string>();
 
-  for (const block of syncable) {
-    const revealed = revealedIds.has(block.id);
-    const eventId = await createCalendarEvent(accessToken, {
-      summary: revealed ? buildRealSummary(block) : MASK_TITLE,
-      location: revealed ? buildRealLocation(block) : undefined,
-      startIso: block.startsAt.toISOString(),
-      endIso: block.endsAt.toISOString(),
-      appBlockId: block.id,
-      reminderOverrides: buildReminders(block, firstOfDayIds.has(block.id)),
-    });
-    result.set(block.id, eventId);
-  }
+  // ブロック数ぶん逐次awaitすると開封時の体感速度が大きく悪化するため並列化する
+  // （個人利用のカレンダーで1日あたり最大でも数十件程度のため、並列リクエストで問題ない）。
+  const entries = await Promise.all(
+    syncable.map(async (block) => {
+      const revealed = revealedIds.has(block.id);
+      const eventId = await createCalendarEvent(accessToken, {
+        summary: revealed ? buildRealSummary(block) : MASK_TITLE,
+        location: revealed ? buildRealLocation(block) : undefined,
+        startIso: block.startsAt.toISOString(),
+        endIso: block.endsAt.toISOString(),
+        appBlockId: block.id,
+        reminderOverrides: buildReminders(block, firstOfDayIds.has(block.id)),
+      });
+      return [block.id, eventId] as const;
+    }),
+  );
 
-  return result;
+  return new Map(entries);
 }
 
 /**
@@ -113,16 +116,18 @@ export async function revealCalendarEventsForBlocks(userId: string, blocks: Sync
   const accessToken = await getValidGoogleAccessToken(userId);
   const firstOfDayIds = computeFirstOfDayIds(blocks.filter(isSyncable));
 
-  for (const block of syncable) {
-    await updateCalendarEvent(accessToken, block.gcalEventId!, {
-      summary: buildRealSummary(block),
-      location: buildRealLocation(block),
-      startIso: block.startsAt.toISOString(),
-      endIso: block.endsAt.toISOString(),
-      appBlockId: block.id,
-      reminderOverrides: buildReminders(block, firstOfDayIds.has(block.id)),
-    });
-  }
+  await Promise.all(
+    syncable.map((block) =>
+      updateCalendarEvent(accessToken, block.gcalEventId!, {
+        summary: buildRealSummary(block),
+        location: buildRealLocation(block),
+        startIso: block.startsAt.toISOString(),
+        endIso: block.endsAt.toISOString(),
+        appBlockId: block.id,
+        reminderOverrides: buildReminders(block, firstOfDayIds.has(block.id)),
+      }),
+    ),
+  );
 }
 
 /** リロール・再計画で不要になった旧イベントを削除する（重複・ゴミイベント防止）。 */
@@ -131,7 +136,5 @@ export async function deleteCalendarEventsByIds(userId: string, gcalEventIds: Ar
   if (ids.length === 0) return;
 
   const accessToken = await getValidGoogleAccessToken(userId);
-  for (const id of ids) {
-    await deleteCalendarEvent(accessToken, id);
-  }
+  await Promise.all(ids.map((id) => deleteCalendarEvent(accessToken, id)));
 }

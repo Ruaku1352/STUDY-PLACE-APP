@@ -55,6 +55,8 @@ export function TodayClient({
   rerollUsed,
   gaveUp,
   rerollAction,
+  fetchMissionTextAction,
+  fetchWeatherAction,
   giveUpAction,
   reschedulePlanAction,
   updateBlockStatusAction,
@@ -70,6 +72,8 @@ export function TodayClient({
   rerollUsed: boolean;
   gaveUp: boolean;
   rerollAction: () => Promise<RevealResult>;
+  fetchMissionTextAction: () => Promise<string>;
+  fetchWeatherAction: () => Promise<RevealWeather | null>;
   giveUpAction: () => Promise<void>;
   reschedulePlanAction: () => Promise<void>;
   updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<void>;
@@ -312,6 +316,8 @@ export function TodayClient({
             medalsRemaining={1}
             streakDays={streakDays}
             action={rerollAction}
+            fetchMissionTextAction={fetchMissionTextAction}
+            fetchWeatherAction={fetchWeatherAction}
             onComplete={() => {
               setShowRerollMachine(false);
               router.refresh();

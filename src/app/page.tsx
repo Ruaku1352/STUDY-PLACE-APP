@@ -6,6 +6,8 @@ import { resolveTodayWeatherForUser } from "@/lib/weather/resolveTodayWeather";
 import { isWeeklyPrepWindow, nextWeekStartDateFrom } from "@/lib/weeklyPrep";
 import {
   deleteBlockManual,
+  fetchMissionTextForToday,
+  fetchWeatherForToday,
   giveUpToday,
   recordReadingLog,
   rerollToday,
@@ -85,6 +87,8 @@ export default async function TodayPage() {
           medalsRemaining={2}
           streakDays={streakDays}
           action={revealToday}
+          fetchMissionTextAction={fetchMissionTextForToday.bind(null, false)}
+          fetchWeatherAction={fetchWeatherForToday}
           giveUpAction={giveUpToday}
         />
       </div>
@@ -152,6 +156,8 @@ export default async function TodayPage() {
         rerollUsed={dayState.rerollUsed}
         gaveUp={dayState.gaveUp}
         rerollAction={rerollToday}
+        fetchMissionTextAction={fetchMissionTextForToday.bind(null, true)}
+        fetchWeatherAction={fetchWeatherForToday}
         giveUpAction={giveUpToday}
         reschedulePlanAction={reschedulePlan}
         updateBlockStatusAction={updateBlockStatus}

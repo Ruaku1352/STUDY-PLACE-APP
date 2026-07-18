@@ -6,7 +6,7 @@ import { getCurrentUserId } from "@/lib/currentUser";
 import { FALLBACK_MISSION_TEXT, generateMissionText } from "@/lib/ai/missionText";
 import { calcBookProgress } from "@/lib/books";
 import { summarizeTodayBlocks } from "@/lib/revealSummary";
-import type { RevealResult } from "@/app/gacha/types";
+import type { RevealResult, RevealWeather } from "@/app/gacha/types";
 import { buildSchedulerInput } from "@/lib/google/buildSchedulerInput";
 import { resolveTodayWeatherForUser } from "@/lib/weather/resolveTodayWeather";
 import {
@@ -38,63 +38,47 @@ function datesBetween(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-/**
- * 開封演出（RevealCard）に必要な情報一式（ミッション文・訪問場所・合計勉強時間・天気）を組み立てる。
- * ミッション文はforce=falseの場合、既に生成済みならAPIを再呼び出しせずキャッシュを返す
- * （1日1回のみ生成というコスト対策）。リロール時はforce=trueで再生成してよい。
- * ミッション文の生成に失敗しても例外は投げず、固定文にフォールバックする。
- * rainRuleAppliedはリロール時に雨の日の近場優先抽選が実際に発動したかどうかを渡す（開封カードへの明示用）。
- */
-async function buildRevealResult(
-  userId: string,
-  today: string,
-  forceMissionText = false,
-  rainRuleApplied = false,
-): Promise<RevealResult> {
-  const [blocks, subjects, locations, streak, dayState, resolvedWeather] = await Promise.all([
-    prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
-    prisma.subject.findMany({ where: { userId } }),
-    prisma.location.findMany({ where: { userId } }),
-    prisma.streak.findUnique({ where: { userId } }),
-    prisma.dayState.findUnique({ where: { userId_date: { userId, date: dateStringToDate(today) } } }),
-    resolveTodayWeatherForUser({ prisma, userId, date: today }),
-  ]);
-
-  const subjectNameById = new Map(subjects.map((s) => [s.id, s.name]));
-  const locationNameById = new Map(locations.map((l) => [l.id, l.name]));
-
-  const blockSummaries = blocks.map((b) => ({
+function buildBlockSummaries(
+  blocks: Array<{ subjectId: string | null; locationId: string | null; startsAt: Date; endsAt: Date }>,
+  subjectNameById: Map<string, string>,
+  locationNameById: Map<string, string>,
+) {
+  return blocks.map((b) => ({
     subjectName: b.subjectId ? (subjectNameById.get(b.subjectId) ?? null) : null,
     locationName: b.locationId ? (locationNameById.get(b.locationId) ?? null) : null,
     startsAt: dateToHHMM(b.startsAt),
     endsAt: dateToHHMM(b.endsAt),
   }));
+}
 
+/**
+ * 開封演出（RevealCard）を即座に表示するための最小限の情報（訪問場所・合計勉強時間）だけを
+ * DBから組み立てる。ミッション文（AI生成）・天気（外部API）はここでは取得せず、
+ * 別途 fetchMissionTextForToday / fetchWeatherForToday をクライアント側から並行して呼び、
+ * 開封演出をブロックしないようにする（体感速度改善のため）。
+ * rainRuleAppliedはリロール時に雨の日の近場優先抽選が実際に発動したかどうかを渡す（開封カードへの明示用）。
+ */
+async function buildFastRevealResult(userId: string, today: string, rainRuleApplied: boolean): Promise<RevealResult> {
+  const t0 = Date.now();
+  const [blocks, subjects, locations] = await Promise.all([
+    prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
+    prisma.subject.findMany({ where: { userId } }),
+    prisma.location.findMany({ where: { userId } }),
+  ]);
+
+  const blockSummaries = buildBlockSummaries(
+    blocks,
+    new Map(subjects.map((s) => [s.id, s.name])),
+    new Map(locations.map((l) => [l.id, l.name])),
+  );
   const { locationNames, totalStudyMin } = summarizeTodayBlocks(blockSummaries);
 
-  const weather = resolvedWeather ? { ...resolvedWeather.summary, blocks: resolvedWeather.blocks } : null;
-
-  let missionText: string;
-  if (!forceMissionText && dayState?.missionText) {
-    missionText = dayState.missionText;
-  } else {
-    try {
-      missionText = await generateMissionText({
-        blocks: blockSummaries,
-        streakDays: streak?.currentCount ?? 0,
-        weather: weather ? { isRainy: weather.isRainy, maxTempC: weather.maxTempC, minTempC: weather.minTempC } : null,
-      });
-      await prisma.dayState.updateMany({ where: { userId, date: dateStringToDate(today) }, data: { missionText } });
-    } catch (e) {
-      console.error("[buildRevealResult] ミッション文の生成に失敗しました。固定文にフォールバックします", e);
-      missionText = FALLBACK_MISSION_TEXT;
-    }
-  }
-
-  return { missionText, locationNames, totalStudyMin, weather, rainRuleApplied };
+  console.log(`[perf] buildFastRevealResult: ${Date.now() - t0}ms`);
+  return { locationNames, totalStudyMin, rainRuleApplied };
 }
 
 export async function revealToday(): Promise<RevealResult> {
+  const t0 = Date.now();
   const userId = await getCurrentUserId();
   const today = todayDateString();
   const updated = await prisma.dayState.updateMany({
@@ -103,6 +87,7 @@ export async function revealToday(): Promise<RevealResult> {
   });
 
   if (updated.count > 0) {
+    const tCal = Date.now();
     try {
       const blocks = await prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today) } });
       const syncable = await buildSyncableBlocks(userId, blocks);
@@ -110,12 +95,85 @@ export async function revealToday(): Promise<RevealResult> {
     } catch (e) {
       console.error("[revealToday] Googleカレンダーの更新に失敗しました", e);
     }
+    console.log(`[perf] revealToday: カレンダー同期 ${Date.now() - tCal}ms`);
   }
 
-  const result = await buildRevealResult(userId, today);
+  const result = await buildFastRevealResult(userId, today, false);
+  console.log(`[perf] revealToday: total ${Date.now() - t0}ms`);
 
   revalidatePath("/");
   return result;
+}
+
+/**
+ * 今日のミッション文を取得する（開封演出をブロックしないよう、revealToday/rerollTodayとは
+ * 別に呼ぶ）。force=falseの場合、既に生成済みならAPIを再呼び出しせずキャッシュを返す
+ * （1日1回のみ生成というコスト対策）。リロール時はforce=trueで再生成する。
+ * ミッション文の生成に失敗しても例外は投げず、固定文にフォールバックする。
+ */
+export async function fetchMissionTextForToday(force: boolean): Promise<string> {
+  const t0 = Date.now();
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+
+  const [blocks, subjects, locations, streak, dayState] = await Promise.all([
+    prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
+    prisma.subject.findMany({ where: { userId } }),
+    prisma.location.findMany({ where: { userId } }),
+    prisma.streak.findUnique({ where: { userId } }),
+    prisma.dayState.findUnique({ where: { userId_date: { userId, date: dateStringToDate(today) } } }),
+  ]);
+  console.log(`[perf] fetchMissionTextForToday: DB取得 ${Date.now() - t0}ms`);
+
+  if (!force && dayState?.missionText) {
+    console.log(`[perf] fetchMissionTextForToday: キャッシュヒット、total ${Date.now() - t0}ms`);
+    return dayState.missionText;
+  }
+
+  const blockSummaries = buildBlockSummaries(
+    blocks,
+    new Map(subjects.map((s) => [s.id, s.name])),
+    new Map(locations.map((l) => [l.id, l.name])),
+  );
+
+  const tWeather = Date.now();
+  const resolvedWeather = await resolveTodayWeatherForUser({ prisma, userId, date: today });
+  console.log(`[perf] fetchMissionTextForToday: 天気解決 ${Date.now() - tWeather}ms`);
+  const weatherForPrompt = resolvedWeather
+    ? {
+        isRainy: resolvedWeather.summary.isRainy,
+        maxTempC: resolvedWeather.summary.maxTempC,
+        minTempC: resolvedWeather.summary.minTempC,
+      }
+    : null;
+
+  let missionText: string;
+  try {
+    const tAi = Date.now();
+    missionText = await generateMissionText({
+      blocks: blockSummaries,
+      streakDays: streak?.currentCount ?? 0,
+      weather: weatherForPrompt,
+    });
+    console.log(`[perf] fetchMissionTextForToday: Claude API ${Date.now() - tAi}ms`);
+    await prisma.dayState.updateMany({ where: { userId, date: dateStringToDate(today) }, data: { missionText } });
+  } catch (e) {
+    console.error("[fetchMissionTextForToday] ミッション文の生成に失敗しました。固定文にフォールバックします", e);
+    missionText = FALLBACK_MISSION_TEXT;
+  }
+
+  console.log(`[perf] fetchMissionTextForToday: total ${Date.now() - t0}ms`);
+  return missionText;
+}
+
+/** 今日の天気（開封カード表示用）を取得する。開封演出をブロックしないよう別アクションとして呼ぶ。 */
+export async function fetchWeatherForToday(): Promise<RevealWeather | null> {
+  const t0 = Date.now();
+  const userId = await getCurrentUserId();
+  const today = todayDateString();
+  const resolvedWeather = await resolveTodayWeatherForUser({ prisma, userId, date: today });
+  console.log(`[perf] fetchWeatherForToday: ${Date.now() - t0}ms`);
+  return resolvedWeather ? { ...resolvedWeather.summary, blocks: resolvedWeather.blocks } : null;
 }
 
 export async function giveUpToday(): Promise<void> {
@@ -218,7 +276,7 @@ export async function rerollToday(): Promise<RevealResult> {
     console.error("[rerollToday] Googleカレンダーの同期に失敗しました", e);
   }
 
-  const result = await buildRevealResult(userId, today, true, rerollOutput.rainRuleApplied);
+  const result = await buildFastRevealResult(userId, today, rerollOutput.rainRuleApplied);
 
   revalidatePath("/");
   return result;

@@ -8,7 +8,11 @@ import { MachineBackLayer, MachineFrontLayer } from "./MachineBody";
 import { MedalIcon } from "./MedalIcon";
 import { MEDAL_DOCK_PERCENT, WINDOW_CENTER_PERCENT } from "./physics";
 import { RevealCard } from "./RevealCard";
-import type { RevealResult } from "./types";
+import type { RevealResult, RevealWeather } from "./types";
+
+/** ミッション文の取得アクション自体が失敗した場合のみ使うクライアント側の最終フォールバック
+ * （サーバー側は通常この文言を返さず内部で固定文にフォールバックするため、ここに来るのは稀）。 */
+const CLIENT_FALLBACK_MISSION_TEXT = "今日も1日、頑張りましょう。";
 
 type Stage = "idle" | "coin-flying" | "knob-turning" | "ejecting" | "blackout" | "opening" | "card-shown" | "error";
 type CapsuleVisualStage = "docked" | "risen";
@@ -38,6 +42,9 @@ export interface GachaMachineProps {
   medalsRemaining: number;
   streakDays: number;
   action: () => Promise<RevealResult>;
+  /** 開封演出をブロックしないよう別枠で並行取得するミッション文・天気アクション。 */
+  fetchMissionTextAction: () => Promise<string>;
+  fetchWeatherAction: () => Promise<RevealWeather | null>;
   /** reveal時のみ有効。ギブアップして手動編集へ切り替える。 */
   giveUpAction?: () => Promise<void>;
   /**
@@ -49,19 +56,33 @@ export interface GachaMachineProps {
 }
 
 /** ガチャガチャ（カプセルトイマシン）の開封演出オーケストレーター。 */
-export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUpAction, onComplete }: GachaMachineProps) {
+export function GachaMachine({
+  mode,
+  medalsRemaining,
+  streakDays,
+  action,
+  fetchMissionTextAction,
+  fetchWeatherAction,
+  giveUpAction,
+  onComplete,
+}: GachaMachineProps) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("idle");
   const [capsuleColor, setCapsuleColor] = useState<CapsuleColorPair | null>(null);
   const [capsuleVisualStage, setCapsuleVisualStage] = useState<CapsuleVisualStage>("docked");
   const [dockedOffset, setDockedOffset] = useState({ dx: 0, dy: 0 });
   const [result, setResult] = useState<RevealResult | null>(null);
+  const [missionText, setMissionText] = useState<string | null>(null);
+  const [weather, setWeather] = useState<RevealWeather | null>(null);
+  const [weatherLoaded, setWeatherLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [giveUpPending, setGiveUpPending] = useState(false);
 
   const domeRef = useRef<GachaDomeHandle | null>(null);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const actionPromiseRef = useRef<Promise<RevealResult> | null>(null);
+  const missionTextPromiseRef = useRef<Promise<string> | null>(null);
+  const weatherPromiseRef = useRef<Promise<RevealWeather | null> | null>(null);
 
   const ensureActionStarted = useCallback(() => {
     if (!actionPromiseRef.current) {
@@ -69,6 +90,22 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
     }
     return actionPromiseRef.current;
   }, [action]);
+
+  // ミッション文・天気は開封演出をブロックしないよう、開封スケジュール取得とは別枠で
+  // 並行して取得し、解決しだいカードへ差し込む（プレースホルダー→差し替え方式）。
+  const ensureMissionTextStarted = useCallback(() => {
+    if (!missionTextPromiseRef.current) {
+      missionTextPromiseRef.current = fetchMissionTextAction();
+    }
+    return missionTextPromiseRef.current;
+  }, [fetchMissionTextAction]);
+
+  const ensureWeatherStarted = useCallback(() => {
+    if (!weatherPromiseRef.current) {
+      weatherPromiseRef.current = fetchWeatherAction();
+    }
+    return weatherPromiseRef.current;
+  }, [fetchWeatherAction]);
 
   useEffect(() => {
     if (stage === "coin-flying") {
@@ -80,6 +117,9 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
       ensureActionStarted().catch(() => {
         // エラーはblackout stageでまとめて拾う
       });
+      // ノブ回転中（演出の間）に先行して呼び始めることで、体感の待ち時間を減らす。
+      ensureMissionTextStarted().catch(() => {});
+      ensureWeatherStarted().catch(() => {});
       domeRef.current?.stir();
       const t = setTimeout(() => setStage("ejecting"), KNOB_TURN_MS);
       return () => clearTimeout(t);
@@ -136,6 +176,24 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
           setStage("error");
         });
 
+      // ミッション文・天気は開封演出の完了を待たず、解決しだいカードへ差し込む
+      // （まだ取得中ならカード側でプレースホルダーを表示する）。
+      ensureMissionTextStarted()
+        .then((text) => {
+          if (active) setMissionText(text);
+        })
+        .catch(() => {
+          if (active) setMissionText(CLIENT_FALLBACK_MISSION_TEXT);
+        });
+      ensureWeatherStarted()
+        .then((w) => {
+          if (active) setWeather(w);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setWeatherLoaded(true);
+        });
+
       return () => {
         active = false;
         clearTimeout(riseTimer);
@@ -146,7 +204,7 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
       const t = setTimeout(() => setStage("card-shown"), OPEN_MS);
       return () => clearTimeout(t);
     }
-  }, [stage, ensureActionStarted]);
+  }, [stage, ensureActionStarted, ensureMissionTextStarted, ensureWeatherStarted]);
 
   function handleStart() {
     if (stage !== "idle" || medalsRemaining <= 0) return;
@@ -156,6 +214,8 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
   function handleSkip() {
     if (!SKIPPABLE_STAGES.includes(stage)) return;
     ensureActionStarted().catch(() => {});
+    ensureMissionTextStarted().catch(() => {});
+    ensureWeatherStarted().catch(() => {});
     setStage("blackout");
   }
 
@@ -166,7 +226,12 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
 
   function handleErrorClose() {
     actionPromiseRef.current = null;
+    missionTextPromiseRef.current = null;
+    weatherPromiseRef.current = null;
     setResult(null);
+    setMissionText(null);
+    setWeather(null);
+    setWeatherLoaded(false);
     setErrorMessage(null);
     setCapsuleColor(null);
     setStage("idle");
@@ -256,7 +321,14 @@ export function GachaMachine({ mode, medalsRemaining, streakDays, action, giveUp
           )}
 
           {stage === "card-shown" && result && (
-            <RevealCard result={result} streakDays={streakDays} onClose={handleClose} />
+            <RevealCard
+              result={result}
+              missionText={missionText}
+              weather={weather}
+              weatherLoaded={weatherLoaded}
+              streakDays={streakDays}
+              onClose={handleClose}
+            />
           )}
         </div>
       )}
