@@ -14,17 +14,17 @@ export default async function StartPointsPage() {
     <div>
       <h1>出発地点管理</h1>
       <p className="muted" style={{ marginBottom: "1rem" }}>
-        1日の始まり・移動時間計算の起点になる場所です。デフォルトの出発地点は、日ごとに変更しない限り毎日使われます。
+        1日の始まり・移動時間計算の起点になる場所です。基準にした出発地点は、日ごとに変更しない限り毎日使われます。
       </p>
 
       <div className="card-list" style={{ marginBottom: "1.5rem" }}>
         {startPoints.length === 0 && <p className="muted">まだ出発地点が登録されていません。</p>}
         {startPoints.map((sp) => (
-          <Link key={sp.id} href={`/start-points/${sp.id}/edit`} className="list-item">
+          <Link key={sp.id} href={`/start-points/${sp.id}/edit`} className={`list-item${sp.isDefault ? " start-point-selected" : ""}`}>
             <div className="list-item-main">
               <span className="list-item-title">
                 {sp.name}
-                {sp.isDefault && " ・ デフォルト"}
+                {sp.isDefault && " ・ 📍 基準"}
               </span>
               <span className="list-item-sub">
                 {sp.address}

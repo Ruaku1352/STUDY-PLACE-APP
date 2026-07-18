@@ -90,7 +90,7 @@ export async function deleteStartPoint(startPointId: string): Promise<void> {
   const target = await prisma.startPoint.findFirst({ where: { id: startPointId, userId } });
   if (!target) return;
   if (target.isDefault) {
-    throw new Error("デフォルトの出発地点は削除できません。先に他の出発地点をデフォルトにしてください。");
+    throw new Error("基準の出発地点は削除できません。先に他の出発地点を基準にしてください。");
   }
 
   await prisma.startPoint.deleteMany({ where: { id: startPointId, userId } });

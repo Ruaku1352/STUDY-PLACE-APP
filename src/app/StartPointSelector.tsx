@@ -24,12 +24,11 @@ export function StartPointSelector({
 
   if (startPoints.length <= 1) return null;
 
-  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value;
-    setValue(next);
+  async function handleSelect(id: string) {
+    setValue(id);
     setPending(true);
     try {
-      await setStartPointAction(next);
+      await setStartPointAction(id);
       router.refresh();
     } finally {
       setPending(false);
@@ -38,16 +37,25 @@ export function StartPointSelector({
 
   return (
     <div className="card" style={{ marginBottom: "1rem" }}>
-      <label htmlFor="startPointSelect" className="muted" style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.3rem" }}>
-        今日の出発地点
-      </label>
-      <select id="startPointSelect" value={value} onChange={handleChange} disabled={pending}>
-        {startPoints.map((sp) => (
-          <option key={sp.id} value={sp.id}>
-            {sp.name}
-          </option>
-        ))}
-      </select>
+      <h2 style={{ marginTop: 0, fontSize: "1rem" }}>どこから出発する?</h2>
+      <div className="card-list">
+        {startPoints.map((sp) => {
+          const isCurrent = sp.id === value;
+          return (
+            <div key={sp.id} className={`list-item${isCurrent ? " start-point-selected" : ""}`}>
+              <div className="list-item-main">
+                <span className="list-item-title">{sp.name}</span>
+                {isCurrent && <span className="list-item-sub">📍 ここを基準に予定を組みます</span>}
+              </div>
+              {!isCurrent && (
+                <button type="button" onClick={() => handleSelect(sp.id)} disabled={pending}>
+                  この場所を基準にする
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

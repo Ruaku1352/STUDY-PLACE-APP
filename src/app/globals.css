@@ -461,6 +461,12 @@ button.button-danger {
   opacity: 0.5;
 }
 
+/* 出発地点セレクタで「現在これが基準になっている」ことを一目でわかるようにする。 */
+.start-point-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
 .timeline {
   display: flex;
   flex-direction: column;

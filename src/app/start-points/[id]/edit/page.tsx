@@ -39,12 +39,12 @@ export default async function EditStartPointPage({ params }: { params: Promise<{
 
       {startPoint.isDefault ? (
         <p className="muted" style={{ marginTop: "0.75rem" }}>
-          この出発地点は現在デフォルトです。
+          📍 ここを基準に予定を組みます
         </p>
       ) : (
         <form action={setDefaultWithId} style={{ marginTop: "0.75rem" }}>
           <button type="submit" className="button-block">
-            デフォルトにする
+            この場所を基準にする
           </button>
         </form>
       )}
@@ -56,7 +56,7 @@ export default async function EditStartPointPage({ params }: { params: Promise<{
       </form>
       {startPoint.isDefault && (
         <p className="muted" style={{ fontSize: "0.75rem", marginTop: "0.25rem" }}>
-          デフォルトの出発地点は削除できません。先に他の出発地点をデフォルトにしてください。
+          基準の出発地点は削除できません。先に他の出発地点を基準にしてください。
         </p>
       )}
 
