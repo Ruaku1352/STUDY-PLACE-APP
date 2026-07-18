@@ -71,8 +71,8 @@ export function AiProposalCard({
 
   if (!proposal) {
     return (
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ marginTop: 0 }}>週次AI提案</h2>
+      <div className="card ai-proposal-card" style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ marginTop: 0 }}>🤖 AIからの提案</h2>
         {status === "failed" ? (
           <div>
             <p className="muted">AI提案の生成に失敗しました。下の手動設定をご利用ください。</p>
@@ -92,8 +92,8 @@ export function AiProposalCard({
   }
 
   return (
-    <div className="card" style={{ marginBottom: "1.5rem" }}>
-      <h2 style={{ marginTop: 0 }}>週次AI提案</h2>
+    <div className="card ai-proposal-card" style={{ marginBottom: "1.5rem" }}>
+      <h2 style={{ marginTop: 0 }}>🤖 AIからの提案</h2>
       <p>{proposal.overallComment}</p>
 
       {proposal.confidence === "provisional" && (

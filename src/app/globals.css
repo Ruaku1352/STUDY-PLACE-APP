@@ -284,6 +284,13 @@ h2 {
   margin-bottom: 1rem;
 }
 
+/* AIからの提案は「自分で決めたノルマ」と混同されないよう、アクセントカラーの
+   左ボーダーと淡い背景色で「これは提案」であることを一目でわかるようにする。 */
+.ai-proposal-card {
+  border-left: 4px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
 .card-list {
   display: flex;
   flex-direction: column;
