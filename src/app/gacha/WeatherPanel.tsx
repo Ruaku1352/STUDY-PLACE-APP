@@ -5,6 +5,7 @@ import type { RevealWeather } from "./types";
 export function WeatherPanel({ weather }: { weather: RevealWeather }) {
   return (
     <div className="gacha-weather">
+      <p className="gacha-weather-label">☁️ 今日の天気（参考）</p>
       <p className="gacha-weather-summary">
         {Math.round(weather.minTempC)}℃〜{Math.round(weather.maxTempC)}℃
         {weather.isRainy && ` ・ 降水確率最大${Math.round(weather.maxPrecipitationProbability)}%`}

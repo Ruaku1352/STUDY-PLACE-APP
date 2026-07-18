@@ -271,7 +271,7 @@ export function GachaMachine({
             <MedalIcon key={i} size="sm" className={i < displayedMedals ? "" : "gacha-medal-spent"} />
           ))}
         </div>
-        <span className="muted">🔥 {streakDays}日目</span>
+        <span className="gacha-status-streak">🔥 {streakDays}日目</span>
       </div>
 
       <div ref={stageContainerRef} className={`gacha-stage${showBlackout ? " gacha-stage-sinking" : ""}`}>
@@ -315,6 +315,7 @@ export function GachaMachine({
               className={`gacha-ejected-capsule gacha-ejected-capsule-${capsuleVisualStage}${capsuleOpen ? " gacha-ejected-capsule-open" : ""}`}
               style={capsuleStyle}
             >
+              <div className="gacha-capsule-glow" aria-hidden="true" />
               <div className="gacha-capsule-half gacha-capsule-half-top" />
               <div className="gacha-capsule-half gacha-capsule-half-bottom" />
             </div>

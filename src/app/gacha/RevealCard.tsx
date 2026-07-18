@@ -25,7 +25,10 @@ export function RevealCard({
       <p className="gacha-reveal-streak">🔥 {streakDays}日目！</p>
 
       {!weatherLoaded && (
-        <div className="gacha-skeleton-block" style={{ height: "4.5rem" }} aria-hidden="true" />
+        <div className="gacha-weather" aria-hidden="true">
+          <div className="gacha-skeleton-line" style={{ width: "40%" }} />
+          <div className="gacha-skeleton-block" style={{ height: "2.6rem" }} />
+        </div>
       )}
       {weatherLoaded && weather && <WeatherPanel weather={weather} />}
 
