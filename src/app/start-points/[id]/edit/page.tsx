@@ -4,8 +4,15 @@ import { getCurrentUserId } from "@/lib/currentUser";
 import { prisma } from "@/lib/prisma";
 import { deleteStartPoint, setDefaultStartPoint, updateStartPoint } from "../../actions";
 
-export default async function EditStartPointPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditStartPointPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ deleteError?: string }>;
+}) {
   const { id } = await params;
+  const { deleteError } = await searchParams;
   const userId = await getCurrentUserId();
   const startPoint = await prisma.startPoint.findFirst({ where: { id, userId } });
   if (!startPoint) notFound();
@@ -17,6 +24,8 @@ export default async function EditStartPointPage({ params }: { params: Promise<{
   return (
     <div>
       <h1>出発地点を編集</h1>
+
+      {deleteError && <div className="warning-box">{deleteError}</div>}
 
       <form action={updateWithId} className="card stack">
         <div className="field">
@@ -50,15 +59,10 @@ export default async function EditStartPointPage({ params }: { params: Promise<{
       )}
 
       <form action={deleteWithId} style={{ marginTop: "0.75rem" }}>
-        <button type="submit" className="button-danger button-block" disabled={startPoint.isDefault}>
+        <button type="submit" className="button-danger button-block">
           削除
         </button>
       </form>
-      {startPoint.isDefault && (
-        <p className="muted" style={{ fontSize: "0.75rem", marginTop: "0.25rem" }}>
-          基準の出発地点は削除できません。先に他の出発地点を基準にしてください。
-        </p>
-      )}
 
       <p style={{ marginTop: "1rem" }}>
         <Link href="/start-points">‹ 出発地点一覧へ戻る</Link>
