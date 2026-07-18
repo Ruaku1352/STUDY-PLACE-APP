@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { getCurrentUserId } from "@/lib/currentUser";
+import { MIN_LOCATION_POOL_SIZE } from "@/lib/locationPool";
 import { prisma } from "@/lib/prisma";
-import { createLocation } from "./actions";
+import { createLocation, setLocationEnabled } from "./actions";
+import { LocationCard } from "./LocationCard";
 
 const KIND_LABEL: Record<string, string> = {
   library: "図書館（滞在時間制限なし）",
@@ -16,23 +17,35 @@ export default async function LocationsPage() {
     orderBy: { createdAt: "asc" },
   });
 
+  const enabledCount = locations.filter((l) => l.isEnabled).length;
+  const poolTooSmall = locations.length >= MIN_LOCATION_POOL_SIZE && enabledCount < MIN_LOCATION_POOL_SIZE;
+
   return (
     <div>
       <h1>勉強場所管理</h1>
 
+      {locations.length > 0 && (
+        <p className="muted" style={{ marginBottom: "0.75rem" }}>
+          有効な場所（今週のガチャの抽選対象）: {enabledCount} / {locations.length}件
+        </p>
+      )}
+      {poolTooSmall && (
+        <p className="warning-box" style={{ marginBottom: "1rem" }}>
+          最低{MIN_LOCATION_POOL_SIZE}箇所を有効にしてください（1箇所だとガチャになりません）。
+        </p>
+      )}
+
       <div className="card-list" style={{ marginBottom: "1.5rem" }}>
         {locations.length === 0 && <p className="muted">まだ場所が登録されていません。</p>}
         {locations.map((l) => (
-          <Link key={l.id} href={`/locations/${l.id}/edit`} className="list-item">
-            <div className="list-item-main">
-              <span className="list-item-title">{l.name}</span>
-              <span className="list-item-sub">
-                {KIND_LABEL[l.kind]}
-                {l.openingHoursJson ? " ・ 営業時間取得済み" : " ・ 営業時間未取得"}
-              </span>
-            </div>
-            <span className="muted">編集 ›</span>
-          </Link>
+          <LocationCard
+            key={l.id}
+            id={l.id}
+            name={l.name}
+            subLabel={`${KIND_LABEL[l.kind]}${l.openingHoursJson ? " ・ 営業時間取得済み" : " ・ 営業時間未取得"}`}
+            isEnabled={l.isEnabled}
+            setLocationEnabledAction={setLocationEnabled}
+          />
         ))}
       </div>
 

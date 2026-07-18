@@ -35,7 +35,7 @@ export default async function WeeklyPlanPage() {
     ...subjects.filter((s) => !savedOrder.includes(s.id)),
   ];
 
-  const savedLocationPool = Array.isArray(weeklyPlan?.locationPoolJson) ? (weeklyPlan.locationPoolJson as string[]) : [];
+  const enabledLocationCount = locations.filter((l) => l.isEnabled).length;
 
   const today = todayDateString();
   const remainingDays = 7 - weekdayIndex(today);
@@ -57,15 +57,14 @@ export default async function WeeklyPlanPage() {
         initialProposal={weeklyPlan?.aiProposalJson ? (weeklyPlan.aiProposalJson as unknown as WeeklyProposal) : null}
         subjects={ordered.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin }))}
         orderedSubjectIds={ordered.map((s) => s.id)}
-        locationPoolIds={savedLocationPool}
         generateAiProposalAction={generateAiProposal}
         applyAiProposalAction={applyAiProposal}
       />
       <WeeklyPlanForm
         weekStartDate={weekStartDate}
         initialSubjects={ordered.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin }))}
-        locationOptions={locations.map((l) => ({ id: l.id, name: l.name }))}
-        initialLocationPoolIds={savedLocationPool}
+        totalLocationCount={locations.length}
+        enabledLocationCount={enabledLocationCount}
         generatePlanAction={generatePlan}
       />
     </div>

@@ -1,4 +1,5 @@
 import { combineDateAndTime, dateStringToDate, dateToDateString, dateToHHMM } from "@/lib/date";
+import { filterEnabledLocations, validateLocationPoolSize } from "@/lib/locationPool";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDate } from "@/lib/scheduler/time";
 import type {
@@ -57,6 +58,9 @@ export async function buildSchedulerInput(
     }),
   ]);
 
+  const enabledLocations = filterEnabledLocations(locations);
+  validateLocationPoolSize(locations.length, enabledLocations.length);
+
   const priorityOrder = Array.isArray(weeklyPlan?.priorities) ? (weeklyPlan.priorities as string[]) : subjects.map((s) => s.id);
 
   const schedulerSubjects: SchedulerSubject[] = subjects.map((s) => {
@@ -77,7 +81,7 @@ export async function buildSchedulerInput(
   let cacheHits = 0;
 
   const schedulerLocations: SchedulerLocation[] = [];
-  for (const loc of locations) {
+  for (const loc of enabledLocations) {
     const manualFallback = (loc.manualHoursJson as WeeklyOpeningHours | null) ?? undefined;
     const result = await getOpeningHours({
       store: openingHoursStore,
@@ -103,13 +107,13 @@ export async function buildSchedulerInput(
 
   const endpointFor = (key: string): RouteEndpoint => {
     if (key === startPoint.id) return { address: startPoint.address };
-    const loc = locations.find((l) => l.id === key);
+    const loc = enabledLocations.find((l) => l.id === key);
     if (loc?.placeId) return { placeId: loc.placeId };
     if (loc) return { address: loc.address };
     throw new Error(`未知の場所キー: ${key}`);
   };
 
-  const travelKeys = [startPoint.id, ...locations.map((l) => l.id)];
+  const travelKeys = [startPoint.id, ...enabledLocations.map((l) => l.id)];
   const travelMinutesByPair = new Map<string, number>();
 
   for (const fromKey of travelKeys) {
@@ -118,7 +122,7 @@ export async function buildSchedulerInput(
         travelMinutesByPair.set(`${fromKey}|${toKey}`, 0);
         continue;
       }
-      const destLocation = locations.find((l) => l.id === toKey);
+      const destLocation = enabledLocations.find((l) => l.id === toKey);
       const result = await getTravelMinutes({
         store: travelCacheStore,
         userId,

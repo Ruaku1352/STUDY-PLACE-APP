@@ -47,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const gcalEventId = await createCalendarEvent(accessToken, {
         summary: PREP_REMINDER_TITLE,
-        description: "週はじめ優先順位設定画面から、来週のノルマ・優先順位・場所プールを設定しましょう。",
+        description: "週はじめ優先順位設定画面から、来週のノルマ・優先順位を設定しましょう。",
         startIso: startsAt.toISOString(),
         endIso: endsAt.toISOString(),
         appBlockId: `prep-reminder-${user.id}-${nextWeekStartDate}`,

@@ -70,7 +70,7 @@ model WeeklyPlan {
   startDate     DateTime?
   // 優先順位: subjectId の配列 (JSON)
   priorities    Json
-  /** 今週の抽選対象とする場所IDの配列(JSON)。null/空配列 = 全場所（後方互換のデフォルト）。 */
+  /** @deprecated 場所プールは Location.isEnabled（永続・場所単位）に置き換え済み。列は残すが未使用。 */
   locationPoolJson Json?
   // 週次AIノルマ提案のキャッシュ（WeeklyProposal型）。週ごとに1回だけ生成する。
   aiProposalJson Json?
@@ -103,6 +103,8 @@ model Location {
   manualHoursJson  Json?
   /** Routes API・キャッシュとも失敗した場合の手動フォールバック（home等からの移動分数） */
   manualTravelMin Int?
+  /** falseなら今週以降のガチャの抽選対象から除外する（過去のScheduleBlock参照は維持）。 */
+  isEnabled       Boolean      @default(true)
 
   fixedEvents    FixedEvent[]
   scheduleBlocks ScheduleBlock[]

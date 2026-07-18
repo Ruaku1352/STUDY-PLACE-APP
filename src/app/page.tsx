@@ -53,7 +53,7 @@ export default async function TodayPage() {
           </p>
           <h1>準備中</h1>
           <p className="muted" style={{ marginBottom: "1rem" }}>
-            今週のプランがまだ生成されていません。ノルマ・優先順位・場所プールを設定すると、ガチャが引けるようになります。
+            今週のプランがまだ生成されていません。ノルマ・優先順位を設定すると、ガチャが引けるようになります。
           </p>
           <Link href="/weekly-plan" className="button-primary button-block">
             週はじめ設定へ

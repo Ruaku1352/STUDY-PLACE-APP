@@ -20,7 +20,6 @@ import { prismaBlockToScheduler, schedulerBlockToPrismaCreate } from "@/lib/sche
 import { reroll } from "@/lib/scheduler/reroll";
 import { reschedule } from "@/lib/scheduler/reschedule";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
-import { filterLocationsByWeeklyPool } from "@/lib/locationPool";
 import { getDefaultStartPointId } from "@/lib/startPoints";
 import { applyDailyResult } from "@/lib/streak";
 
@@ -227,19 +226,12 @@ export async function rerollToday(): Promise<RevealResult> {
     where: { userId, date: dateStringToDate(today) },
   });
 
-  const pooledLocations = await filterLocationsByWeeklyPool(
-    prisma,
-    userId,
-    dateStringToDate(weekStartDate),
-    input.locations,
-  );
-
   const rerollOutput = reroll({
     date: today,
     startLocationId: startPointId,
     previousBlocks: previousBlocksRaw.map(prismaBlockToScheduler),
     subjects: input.subjects,
-    locations: pooledLocations,
+    locations: input.locations,
     fixedEvents: input.fixedEvents.filter((e) => e.date === today),
     settings: input.settings,
     travelTimeFn: input.travelTimeFn,
@@ -310,19 +302,12 @@ export async function setStartPointForToday(startPointId: string): Promise<void>
     where: { userId, date: dateStringToDate(today) },
   });
 
-  const pooledLocations = await filterLocationsByWeeklyPool(
-    prisma,
-    userId,
-    dateStringToDate(weekStartDate),
-    input.locations,
-  );
-
   const rerollOutput = reroll({
     date: today,
     startLocationId: startPointId,
     previousBlocks: previousBlocksRaw.map(prismaBlockToScheduler),
     subjects: input.subjects,
-    locations: pooledLocations,
+    locations: input.locations,
     fixedEvents: input.fixedEvents.filter((e) => e.date === today),
     settings: input.settings,
     travelTimeFn: input.travelTimeFn,
@@ -387,15 +372,8 @@ export async function reschedulePlan(): Promise<void> {
 
   const startPointId = await getDefaultStartPointId(userId);
   const input = await buildSchedulerInput(userId, weekStartDate, startPointId);
-  const pooledLocations = await filterLocationsByWeeklyPool(
-    prisma,
-    userId,
-    dateStringToDate(weekStartDate),
-    input.locations,
-  );
   const result = reschedule({
     ...input,
-    locations: pooledLocations,
     fromDate,
     completedBlocks: completedRows.map(prismaBlockToScheduler),
   });

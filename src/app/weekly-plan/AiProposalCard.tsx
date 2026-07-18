@@ -22,7 +22,6 @@ export function AiProposalCard({
   initialProposal,
   subjects,
   orderedSubjectIds,
-  locationPoolIds,
   generateAiProposalAction,
   applyAiProposalAction,
 }: {
@@ -30,14 +29,8 @@ export function AiProposalCard({
   initialProposal: WeeklyProposal | null;
   subjects: AiProposalSubjectMeta[];
   orderedSubjectIds: string[];
-  /** 空配列なら「全場所」を意味する。 */
-  locationPoolIds: string[];
   generateAiProposalAction: (weekStartDate: string) => Promise<{ proposal: WeeklyProposal | null; error?: string }>;
-  applyAiProposalAction: (
-    weekStartDate: string,
-    orderedSubjectIds: string[],
-    locationPoolIds: string[],
-  ) => Promise<{ warnings: unknown[] }>;
+  applyAiProposalAction: (weekStartDate: string, orderedSubjectIds: string[]) => Promise<{ warnings: unknown[] }>;
 }) {
   const [proposal, setProposal] = useState(initialProposal);
   const [status, setStatus] = useState<"idle" | "loading" | "failed" | "applying" | "applied">("idle");
@@ -62,7 +55,7 @@ export function AiProposalCard({
 
   async function handleApply() {
     setStatus("applying");
-    await applyAiProposalAction(weekStartDate, orderedSubjectIds, locationPoolIds);
+    await applyAiProposalAction(weekStartDate, orderedSubjectIds);
     setStatus("applied");
     router.refresh();
   }

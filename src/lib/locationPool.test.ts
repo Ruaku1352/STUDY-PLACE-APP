@@ -1,29 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { MIN_LOCATION_POOL_SIZE, filterLocationPool, validateLocationPoolSize } from "./locationPool";
+import { MIN_LOCATION_POOL_SIZE, filterEnabledLocations, validateLocationPoolSize } from "./locationPool";
 
-describe("filterLocationPool", () => {
-  const locations = [{ id: "a" }, { id: "b" }, { id: "c" }];
+describe("filterEnabledLocations", () => {
+  const locations = [
+    { id: "a", isEnabled: true },
+    { id: "b", isEnabled: false },
+    { id: "c", isEnabled: true },
+  ];
 
-  it("プールが空なら全場所を返す（後方互換のデフォルト）", () => {
-    expect(filterLocationPool(locations, [])).toEqual(locations);
+  it("isEnabledがtrueの場所だけを返す", () => {
+    expect(filterEnabledLocations(locations)).toEqual([
+      { id: "a", isEnabled: true },
+      { id: "c", isEnabled: true },
+    ]);
   });
 
-  it("プールに含まれる場所だけを返す", () => {
-    expect(filterLocationPool(locations, ["b", "c"])).toEqual([{ id: "b" }, { id: "c" }]);
-  });
-
-  it("プールに含まれない場所は抽選対象から除外される", () => {
-    const result = filterLocationPool(locations, ["a"]);
-    expect(result.some((l) => l.id === "b" || l.id === "c")).toBe(false);
+  it("全て無効なら空配列を返す", () => {
+    expect(filterEnabledLocations([{ id: "a", isEnabled: false }])).toEqual([]);
   });
 });
 
 describe("validateLocationPoolSize", () => {
-  it(`登録場所が${MIN_LOCATION_POOL_SIZE}件以上あるのにプールが${MIN_LOCATION_POOL_SIZE}件未満なら例外を投げる`, () => {
+  it(`登録場所が${MIN_LOCATION_POOL_SIZE}件以上あるのに有効な場所が${MIN_LOCATION_POOL_SIZE}件未満なら例外を投げる`, () => {
     expect(() => validateLocationPoolSize(3, 1)).toThrow();
   });
 
-  it(`プールが${MIN_LOCATION_POOL_SIZE}件以上なら例外を投げない`, () => {
+  it(`有効な場所が${MIN_LOCATION_POOL_SIZE}件以上なら例外を投げない`, () => {
     expect(() => validateLocationPoolSize(3, 2)).not.toThrow();
   });
 

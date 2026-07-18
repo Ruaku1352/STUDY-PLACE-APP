@@ -91,6 +91,14 @@ export async function deleteLocation(locationId: string): Promise<void> {
   redirect("/locations");
 }
 
+/** 今週以降のガチャの抽選対象に含めるかどうかを切り替える。 */
+export async function setLocationEnabled(locationId: string, isEnabled: boolean): Promise<void> {
+  const userId = await getCurrentUserId();
+  await prisma.location.updateMany({ where: { id: locationId, userId }, data: { isEnabled } });
+  revalidatePath("/locations");
+  revalidatePath("/weekly-plan");
+}
+
 export async function resolveLocationHours(locationId: string): Promise<void> {
   const userId = await getCurrentUserId();
   const loc = await prisma.location.findFirst({ where: { id: locationId, userId } });
