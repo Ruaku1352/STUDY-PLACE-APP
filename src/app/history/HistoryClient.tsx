@@ -32,6 +32,7 @@ export function HistoryClient({
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [partialInputId, setPartialInputId] = useState<string | null>(null);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   async function run<T>(key: string, fn: () => Promise<T>): Promise<T> {
     setPending(key);
@@ -50,83 +51,106 @@ export function HistoryClient({
 
   return (
     <div className="card-list">
-      {blocksByDate.map(({ date, blocks }) => (
-        <div key={date} className="card">
-          <h2>{date}</h2>
-          <div className="timeline">
-            {blocks.map((b) => {
-              const fullDuration = toMinutes(b.endsAt) - toMinutes(b.startsAt);
-              return (
-                <div key={b.id} className="timeline-block" data-type="study">
-                  <span className="timeline-time">
-                    {b.startsAt}
-                    <br />
-                    {b.endsAt}
-                  </span>
-                  <div className="timeline-body">
-                    <div className="timeline-title">
-                      {b.subjectName}
-                      {b.locationName ? ` @ ${b.locationName}` : ""}
-                    </div>
-                    <div className="timeline-sub">状態: {STATUS_LABEL[b.status]}</div>
+      {blocksByDate.map(({ date, blocks }) => {
+        const isOpen = expandedDate === date;
+        return (
+          <div key={date} className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <button
+              type="button"
+              className="history-day-header"
+              aria-expanded={isOpen}
+              onClick={() => setExpandedDate(isOpen ? null : date)}
+            >
+              <h2 style={{ margin: 0 }}>{date}</h2>
+              <span className="history-day-chevron" aria-hidden="true">
+                ▾
+              </span>
+            </button>
+            <div className={`history-day-content${isOpen ? " history-day-content-open" : ""}`}>
+              <div className="history-day-content-inner">
+                <div className="history-day-content-inner-pad">
+                  <div className="timeline">
+                  {blocks.map((b) => {
+                    const fullDuration = toMinutes(b.endsAt) - toMinutes(b.startsAt);
+                    return (
+                      <div key={b.id} className="timeline-block" data-type="study">
+                        <span className="timeline-time">
+                          {b.startsAt}
+                          <br />
+                          {b.endsAt}
+                        </span>
+                        <div className="timeline-body">
+                          <div className="timeline-title">
+                            {b.subjectName}
+                            {b.locationName ? ` @ ${b.locationName}` : ""}
+                          </div>
+                          <div className="timeline-sub">状態: {STATUS_LABEL[b.status]}</div>
 
-                    <div className="actions-row" style={{ marginTop: "0.4rem" }}>
-                      <button
-                        type="button"
-                        disabled={pending !== null}
-                        onClick={() => run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "done", fullDuration))}
-                      >
-                        完了
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pending !== null}
-                        onClick={() => setPartialInputId(partialInputId === b.id ? null : b.id)}
-                      >
-                        一部完了
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pending !== null}
-                        onClick={() => run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "skipped", 0))}
-                      >
-                        未実施
-                      </button>
-                    </div>
+                          <div className="actions-row" style={{ marginTop: "0.4rem" }}>
+                            <button
+                              type="button"
+                              disabled={pending !== null}
+                              onClick={() =>
+                                run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "done", fullDuration))
+                              }
+                            >
+                              完了
+                            </button>
+                            <button
+                              type="button"
+                              disabled={pending !== null}
+                              onClick={() => setPartialInputId(partialInputId === b.id ? null : b.id)}
+                            >
+                              一部完了
+                            </button>
+                            <button
+                              type="button"
+                              disabled={pending !== null}
+                              onClick={() =>
+                                run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "skipped", 0))
+                              }
+                            >
+                              未実施
+                            </button>
+                          </div>
 
-                    {partialInputId === b.id && (
-                      <form
-                        className="row"
-                        style={{ marginTop: "0.4rem" }}
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          const value = Number(new FormData(e.currentTarget).get("actualMin"));
-                          run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "partial", value)).then(() =>
-                            setPartialInputId(null),
-                          );
-                        }}
-                      >
-                        <input
-                          type="number"
-                          name="actualMin"
-                          min={0}
-                          max={fullDuration}
-                          defaultValue={Math.round(fullDuration / 2)}
-                          style={{ width: "5rem" }}
-                        />
-                        <span className="muted">分 実施</span>
-                        <button type="submit" className="button-primary">
-                          記録
-                        </button>
-                      </form>
-                    )}
+                          {partialInputId === b.id && (
+                            <form
+                              className="row"
+                              style={{ marginTop: "0.4rem" }}
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const value = Number(new FormData(e.currentTarget).get("actualMin"));
+                                run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "partial", value)).then(() =>
+                                  setPartialInputId(null),
+                                );
+                              }}
+                            >
+                              <input
+                                type="number"
+                                name="actualMin"
+                                min={0}
+                                max={fullDuration}
+                                defaultValue={Math.round(fullDuration / 2)}
+                                style={{ width: "5rem" }}
+                              />
+                              <span className="muted">分 実施</span>
+                              <button type="submit" className="button-primary">
+                                記録
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

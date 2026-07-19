@@ -652,6 +652,60 @@ button.button-danger {
   color: var(--accent);
 }
 
+/* 実績記録画面のアコーディオン。日付だけの見出しをクリックすると詳細（タイムライン）が開く。 */
+.history-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 1rem;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+
+.history-day-header:hover {
+  background: var(--border);
+}
+
+.history-day-chevron {
+  display: inline-block;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.history-day-header[aria-expanded="true"] .history-day-chevron {
+  transform: rotate(180deg);
+}
+
+/* grid-template-rowsを0fr↔1frでtransitionさせることで、高さ不明なコンテンツでも
+   JSで高さを測らずになめらかに開閉できる。 */
+.history-day-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.history-day-content-open {
+  grid-template-rows: 1fr;
+}
+
+/* paddingはこの要素自体ではなく子(.history-day-content-inner-pad)に持たせる。
+   grid-template-rows:0fr での折りたたみはグリッドアイテム自身の余白があると
+   完全に0にならないため、paddingを1段下の要素に逃がす。 */
+.history-day-content-inner {
+  overflow: hidden;
+}
+
+.history-day-content-inner-pad {
+  padding: 0 1rem 1rem;
+}
+
 .timeline {
   display: flex;
   flex-direction: column;
