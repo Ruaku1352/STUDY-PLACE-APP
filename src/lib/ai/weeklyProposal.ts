@@ -57,13 +57,15 @@ const SYSTEM_PROMPT = `あなたは勉強スケジュール管理アプリの週
 - overallComment は先週の振り返りを踏まえた全体コメント（2〜3文、日本語）にすること。
 - 入力の remainingDaysInWeek が7未満の場合、週の途中からの設定であることを意味する。
   proposedQuotaMinは7日分ではなくremainingDaysInWeek日分の現実的な量にすること
-  （目安: 通常の提案値 × remainingDaysInWeek/7 程度。無理に7日分の量を残り日数に詰め込まないこと）。`;
+  （目安: 通常の提案値 × remainingDaysInWeek/7 程度。無理に7日分の量を残り日数に詰め込まないこと）。
+- 入力の level（現在のレベル）がキリのいい数字（10刻みなど）の場合のみ、overallCommentで「Lv.10おめでとう」のように軽く触れてよい。それ以外は無理に言及しなくてよい。`;
 
 /** 週次実績データをClaude APIに渡し、来週のノルマ提案をJSONで受け取る。remainingDaysInWeekは対象週の残り日数（通常7、週の途中の設定なら7未満）。 */
 export async function generateWeeklyProposal(
   input: WeeklyReviewInput,
   subjects: ProposalSubjectMeta[],
   remainingDaysInWeek = 7,
+  level = 1,
 ): Promise<WeeklyProposal> {
   const client = getAnthropicClient();
 
@@ -73,6 +75,7 @@ export async function generateWeeklyProposal(
     rerollCount: input.rerollCount,
     giveUpCount: input.giveUpCount,
     remainingDaysInWeek,
+    level,
     subjects: input.subjects.map((s) => {
       const meta = subjects.find((m) => m.id === s.subjectId);
       return {

@@ -22,6 +22,9 @@ import { reschedule } from "@/lib/scheduler/reschedule";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
 import { getDefaultStartPointId } from "@/lib/startPoints";
 import { applyDailyResult } from "@/lib/streak";
+import { applyXpForBlockStatusUpdate, reverseXpForBlockDeletion, type XpUpdateResult } from "@/lib/xp/applyXp";
+import { XP_BOOK_COMPLETE_BONUS } from "@/lib/xp/block";
+import { levelInfoFromTotalXp } from "@/lib/xp/level";
 
 function currentWeekStart(today: string): string {
   return addDaysToDate(today, -weekdayIndex(today));
@@ -115,12 +118,13 @@ export async function fetchMissionTextForToday(force: boolean): Promise<string> 
   const userId = await getCurrentUserId();
   const today = todayDateString();
 
-  const [blocks, subjects, locations, streak, dayState] = await Promise.all([
+  const [blocks, subjects, locations, streak, dayState, userProgress] = await Promise.all([
     prisma.scheduleBlock.findMany({ where: { userId, date: dateStringToDate(today), type: "study" } }),
     prisma.subject.findMany({ where: { userId } }),
     prisma.location.findMany({ where: { userId } }),
     prisma.streak.findUnique({ where: { userId } }),
     prisma.dayState.findUnique({ where: { userId_date: { userId, date: dateStringToDate(today) } } }),
+    prisma.userProgress.findUnique({ where: { userId } }),
   ]);
   console.log(`[perf] fetchMissionTextForToday: DB取得 ${Date.now() - t0}ms`);
 
@@ -152,6 +156,7 @@ export async function fetchMissionTextForToday(force: boolean): Promise<string> 
     missionText = await generateMissionText({
       blocks: blockSummaries,
       streakDays: streak?.currentCount ?? 0,
+      level: levelInfoFromTotalXp(userProgress?.totalXp ?? 0).level,
       weather: weatherForPrompt,
     });
     console.log(`[perf] fetchMissionTextForToday: Claude API ${Date.now() - tAi}ms`);
@@ -432,18 +437,17 @@ export async function updateBlockStatus(
   blockId: string,
   status: "done" | "partial" | "skipped",
   actualMin: number,
-): Promise<void> {
+): Promise<XpUpdateResult> {
   const userId = await getCurrentUserId();
-  await prisma.scheduleBlock.updateMany({
-    where: { id: blockId, userId },
-    data: { status, actualMin },
-  });
+  // ブロックのstatus/actualMinの更新はapplyXpForBlockStatusUpdate内で行う（XP再計算と同じトランザクションにするため）。
+  const xpResult = await applyXpForBlockStatusUpdate(prisma, userId, blockId, status, actualMin);
 
   if (status === "done" || status === "partial") {
     await updateStreakForToday(userId);
   }
 
   revalidatePath("/");
+  return xpResult;
 }
 
 /** その日に1件以上の完了/一部完了があったことをストリークに反映する。同日内の再呼び出しは冪等。 */
@@ -513,6 +517,7 @@ export async function deleteBlockManual(blockId: string): Promise<void> {
   const block = await prisma.scheduleBlock.findFirst({ where: { id: blockId, userId } });
   if (!block) return;
 
+  await reverseXpForBlockDeletion(prisma, userId, block);
   await prisma.scheduleBlock.deleteMany({ where: { id: blockId, userId } });
 
   if (block.gcalEventId) {
@@ -545,6 +550,12 @@ export async function recordReadingLog(blockId: string, bookId: string, fromPage
     const { completed } = calcBookProgress(book.totalPages, maxPageRead._max.toPage ?? 0);
     if (completed) {
       await prisma.book.update({ where: { id: bookId }, data: { completedAt: new Date() } });
+      // completedAtを取り消す操作はこのアプリに存在しないため、書籍制覇ボーナスは一方向（減算ロジック不要）。
+      await prisma.userProgress.upsert({
+        where: { userId },
+        create: { userId, totalXp: XP_BOOK_COMPLETE_BONUS },
+        update: { totalXp: { increment: XP_BOOK_COMPLETE_BONUS } },
+      });
     }
   }
 

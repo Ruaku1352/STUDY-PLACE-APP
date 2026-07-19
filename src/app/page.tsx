@@ -17,6 +17,7 @@ import {
   updateBlockManual,
   updateBlockStatus,
 } from "./actions";
+import { levelInfoFromTotalXp } from "@/lib/xp/level";
 import { GachaMachine } from "./gacha/GachaMachine";
 import { StartPointSelector } from "./StartPointSelector";
 import { TodayClient, type BookOption, type TodayBlock } from "./TodayClient";
@@ -64,8 +65,12 @@ export default async function TodayPage() {
   }
 
   const isRevealed = Boolean(dayState.revealedAt) || dayState.gaveUp;
-  const streak = await prisma.streak.findUnique({ where: { userId } });
+  const [streak, userProgress] = await Promise.all([
+    prisma.streak.findUnique({ where: { userId } }),
+    prisma.userProgress.findUnique({ where: { userId } }),
+  ]);
   const streakDays = streak?.currentCount ?? 0;
+  const levelInfo = levelInfoFromTotalXp(userProgress?.totalXp ?? 0);
 
   if (!isRevealed) {
     const startPoints = await prisma.startPoint.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
@@ -86,6 +91,7 @@ export default async function TodayPage() {
           mode="reveal"
           medalsRemaining={2}
           streakDays={streakDays}
+          level={levelInfo.level}
           action={revealToday}
           fetchMissionTextAction={fetchMissionTextForToday.bind(null, false)}
           fetchWeatherAction={fetchWeatherForToday}
@@ -152,6 +158,7 @@ export default async function TodayPage() {
         locationOptions={locations.map((l) => ({ id: l.id, name: l.name }))}
         bookOptions={bookOptions}
         streakDays={streakDays}
+        levelInfo={levelInfo}
         weather={weather}
         rerollUsed={dayState.rerollUsed}
         gaveUp={dayState.gaveUp}

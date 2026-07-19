@@ -15,6 +15,7 @@ import { computeIncludedDayIndices } from "@/lib/scheduler/dayRange";
 import { generateWeek } from "@/lib/scheduler/generateWeek";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
 import type { QuotaWarning } from "@/lib/scheduler/types";
+import { levelInfoFromTotalXp } from "@/lib/xp/level";
 
 /** 週の途中に設定した場合はその日、そうでなければweekStartDateをそのまま返す。 */
 function resolveEffectiveStartDate(weekStartDate: string, weekEndDate: string): string {
@@ -142,12 +143,16 @@ export async function generateAiProposal(weekStartDate: string): Promise<{ propo
     const remainingDaysInWeek = 7 - weekdayIndex(startDate);
 
     const subjectsMeta = subjects.map((s) => ({ id: s.id, name: s.name, weeklyQuotaMin: s.weeklyQuotaMin, timeSlot: s.timeSlot }));
-    const reviewInput = await buildWeeklyReviewInput(userId, weekStartDate);
+    const [reviewInput, userProgress] = await Promise.all([
+      buildWeeklyReviewInput(userId, weekStartDate),
+      prisma.userProgress.findUnique({ where: { userId } }),
+    ]);
+    const level = levelInfoFromTotalXp(userProgress?.totalXp ?? 0).level;
     // 実績データが1週間も無い初回はAIに判断材料が無いため、AIを呼ばずランダムに初期提案を作成する
     const proposal =
       reviewInput.weeksObserved === 0
         ? generateRandomInitialProposal(subjectsMeta, Math.random, remainingDaysInWeek)
-        : await generateWeeklyProposal(reviewInput, subjectsMeta, remainingDaysInWeek);
+        : await generateWeeklyProposal(reviewInput, subjectsMeta, remainingDaysInWeek, level);
 
     await prisma.weeklyPlan.upsert({
       where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },

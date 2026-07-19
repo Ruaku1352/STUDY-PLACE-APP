@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toMinutes } from "@/lib/scheduler/time";
+import type { XpUpdateResult } from "@/lib/xp/applyXp";
 
 export interface HistoryBlock {
   id: string;
@@ -26,17 +27,18 @@ export function HistoryClient({
   updateBlockStatusAction,
 }: {
   blocksByDate: Array<{ date: string; blocks: HistoryBlock[] }>;
-  updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<void>;
+  updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<XpUpdateResult>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [partialInputId, setPartialInputId] = useState<string | null>(null);
 
-  async function run(key: string, fn: () => Promise<void>) {
+  async function run<T>(key: string, fn: () => Promise<T>): Promise<T> {
     setPending(key);
     try {
-      await fn();
+      const result = await fn();
       router.refresh();
+      return result;
     } finally {
       setPending(null);
     }

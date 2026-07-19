@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toMinutes } from "@/lib/scheduler/time";
+import type { XpUpdateResult } from "@/lib/xp/applyXp";
+import type { LevelInfo } from "@/lib/xp/level";
 import { GachaMachine } from "./gacha/GachaMachine";
 import type { RevealResult, RevealWeather } from "./gacha/types";
 import { WeatherPanel } from "./gacha/WeatherPanel";
@@ -51,6 +53,7 @@ export function TodayClient({
   locationOptions,
   bookOptions,
   streakDays,
+  levelInfo,
   weather,
   rerollUsed,
   gaveUp,
@@ -68,6 +71,7 @@ export function TodayClient({
   locationOptions: LocationOption[];
   bookOptions: BookOption[];
   streakDays: number;
+  levelInfo: LevelInfo;
   weather: RevealWeather | null;
   rerollUsed: boolean;
   gaveUp: boolean;
@@ -76,7 +80,7 @@ export function TodayClient({
   fetchWeatherAction: () => Promise<RevealWeather | null>;
   giveUpAction: () => Promise<void>;
   reschedulePlanAction: () => Promise<void>;
-  updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<void>;
+  updateBlockStatusAction: (blockId: string, status: "done" | "partial" | "skipped", actualMin: number) => Promise<XpUpdateResult>;
   updateBlockManualAction: (blockId: string, formData: FormData) => Promise<void>;
   deleteBlockManualAction: (blockId: string) => Promise<void>;
   recordReadingLogAction: (blockId: string, bookId: string, fromPage: number, toPage: number) => Promise<void>;
@@ -87,22 +91,53 @@ export function TodayClient({
   const [partialInputId, setPartialInputId] = useState<string | null>(null);
   const [readingLogId, setReadingLogId] = useState<string | null>(null);
   const [showRerollMachine, setShowRerollMachine] = useState(false);
+  const [xpToast, setXpToast] = useState<{ amount: number; key: number } | null>(null);
+  const [levelUp, setLevelUp] = useState<{ newLevel: number } | null>(null);
+  const xpToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function run(key: string, fn: () => Promise<void>) {
+  async function run<T>(key: string, fn: () => Promise<T>): Promise<T> {
     setPending(key);
     try {
-      await fn();
+      const result = await fn();
       router.refresh();
+      return result;
     } finally {
       setPending(null);
     }
   }
 
+  /** ブロックの実績記録に伴うXP獲得・レベルアップを演出する。マイナスの差分（取り消し）はトースト表示しない。 */
+  function handleXpResult(result: XpUpdateResult) {
+    if (result.xpGained > 0) {
+      if (xpToastTimer.current) clearTimeout(xpToastTimer.current);
+      setXpToast({ amount: result.xpGained, key: Date.now() });
+      xpToastTimer.current = setTimeout(() => setXpToast(null), 1000);
+    }
+    if (result.leveledUp) {
+      setLevelUp({ newLevel: result.newLevel });
+      setTimeout(() => setLevelUp(null), 2500);
+    }
+  }
+
+  const xpBarPercent =
+    levelInfo.xpForNextLevel > 0 ? Math.round((levelInfo.currentLevelXp / levelInfo.xpForNextLevel) * 100) : 0;
+
   return (
     <div>
-      <p className="muted" style={{ marginBottom: "0.75rem" }}>
-        🔥 {streakDays}日目
-      </p>
+      <div className="today-status-row">
+        <span className="today-status-level">Lv.{levelInfo.level}</span>
+        <div className="today-xp-bar-wrap">
+          <div className="today-xp-bar">
+            <div className="today-xp-bar-fill" style={{ width: `${xpBarPercent}%` }} />
+          </div>
+          {xpToast && (
+            <span key={xpToast.key} className="xp-gain-toast">
+              +{xpToast.amount} XP
+            </span>
+          )}
+        </div>
+        <span className="gacha-status-streak">🔥 {streakDays}日目</span>
+      </div>
       {weather && (
         <div className="card">
           <WeatherPanel weather={weather} />
@@ -139,7 +174,9 @@ export function TodayClient({
                     <button
                       type="button"
                       disabled={pending !== null}
-                      onClick={() => run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "done", fullDuration))}
+                      onClick={() =>
+                        run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "done", fullDuration)).then(handleXpResult)
+                      }
                     >
                       完了
                     </button>
@@ -153,7 +190,9 @@ export function TodayClient({
                     <button
                       type="button"
                       disabled={pending !== null}
-                      onClick={() => run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "skipped", 0))}
+                      onClick={() =>
+                        run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "skipped", 0)).then(handleXpResult)
+                      }
                     >
                       未実施
                     </button>
@@ -167,9 +206,10 @@ export function TodayClient({
                     onSubmit={(e) => {
                       e.preventDefault();
                       const value = Number(new FormData(e.currentTarget).get("actualMin"));
-                      run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "partial", value)).then(() =>
-                        setPartialInputId(null),
-                      );
+                      run(`status-${b.id}`, () => updateBlockStatusAction(b.id, "partial", value)).then((result) => {
+                        handleXpResult(result);
+                        setPartialInputId(null);
+                      });
                     }}
                   >
                     <input
@@ -315,6 +355,7 @@ export function TodayClient({
             mode="reroll"
             medalsRemaining={1}
             streakDays={streakDays}
+            level={levelInfo.level}
             action={rerollAction}
             fetchMissionTextAction={fetchMissionTextAction}
             fetchWeatherAction={fetchWeatherAction}
@@ -323,6 +364,16 @@ export function TodayClient({
               router.refresh();
             }}
           />
+        </div>
+      )}
+
+      {levelUp && (
+        <div className="level-up-overlay" onClick={() => setLevelUp(null)}>
+          <div className="level-up-card">
+            <div className="level-up-glow" aria-hidden="true" />
+            <p className="level-up-title">⬆️ LEVEL UP!</p>
+            <p className="level-up-level">Lv.{levelUp.newLevel}</p>
+          </div>
         </div>
       )}
     </div>

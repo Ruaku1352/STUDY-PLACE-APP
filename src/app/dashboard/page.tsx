@@ -4,6 +4,8 @@ import { calcBookProgress } from "@/lib/books";
 import { computeIdealPacePercent } from "@/lib/idealPace";
 import { prisma } from "@/lib/prisma";
 import { addDaysToDate, weekdayIndex } from "@/lib/scheduler/time";
+import { levelInfoFromTotalXp } from "@/lib/xp/level";
+import { GrowthCard } from "./GrowthCard";
 import { ProgressChart, type SubjectProgress } from "./ProgressChart";
 
 export default async function DashboardPage() {
@@ -13,7 +15,7 @@ export default async function DashboardPage() {
   const weekStartDate = addDaysToDate(today, -weekdayIndex(today));
   const weekEndDate = addDaysToDate(weekStartDate, 6);
 
-  const [subjects, studyBlocks, books, streak, weeklyPlan] = await Promise.all([
+  const [subjects, studyBlocks, books, streak, weeklyPlan, userProgress] = await Promise.all([
     prisma.subject.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
     prisma.scheduleBlock.findMany({
       where: {
@@ -27,7 +29,10 @@ export default async function DashboardPage() {
     prisma.weeklyPlan.findUnique({
       where: { userId_weekStartDate: { userId, weekStartDate: dateStringToDate(weekStartDate) } },
     }),
+    prisma.userProgress.findUnique({ where: { userId } }),
   ]);
+
+  const levelInfo = levelInfoFromTotalXp(userProgress?.totalXp ?? 0);
 
   // 週の途中から設定した場合はその実際の開始日を、月曜起点固定にせず理想ペースの分母にする
   const effectiveStartDate = weeklyPlan?.startDate ? dateToDateString(weeklyPlan.startDate) : weekStartDate;
@@ -52,11 +57,13 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1>進捗ダッシュボード</h1>
+      <GrowthCard
+        levelInfo={levelInfo}
+        currentStreak={streak?.currentCount ?? 0}
+        longestStreak={streak?.longestCount ?? 0}
+      />
       <p className="muted" style={{ marginBottom: "1rem" }}>
         今週 {weekStartDate} 〜 {weekEndDate}（理想ペース: {idealPacePercent}%）
-      </p>
-      <p className="muted" style={{ marginBottom: "1rem" }}>
-        🔥 現在 {streak?.currentCount ?? 0}日 ・ 最長記録 {streak?.longestCount ?? 0}日
       </p>
 
       {data.length === 0 ? (

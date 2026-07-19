@@ -467,6 +467,191 @@ button.button-danger {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
+/* ダッシュボード最上部の成長カード（レベルを主役に、直下にXPバー・同じカード内にストリーク）。 */
+.growth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.growth-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.level-badge {
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.level-badge-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.level-badge-number {
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.growth-card-xp {
+  flex: 1;
+  min-width: 0;
+}
+
+.xp-bar {
+  width: 100%;
+  height: 0.6rem;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.growth-card-streak {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* 今日のページの常時表示ステータス行（Lv.N・細いXPバー・ストリーク）。XP獲得トーストの着地点でもある。 */
+.today-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.today-status-level {
+  font-size: 1.05rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.today-xp-bar-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 4rem;
+  max-width: 8rem;
+}
+
+.today-xp-bar {
+  width: 100%;
+  height: 0.4rem;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.today-xp-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+/* 完了ボタン押下時に「+N XP」が浮かんでフェードアウトする（バー自体はwidthのtransitionで同時に伸びる）。 */
+.xp-gain-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: xp-toast-rise 1s ease-out forwards;
+}
+
+@keyframes xp-toast-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -14px);
+  }
+}
+
+/* レベルアップ演出。開封時の光る演出と同系統のトーンだが、一段しっかり目立たせる（派手なパーティクル・全画面フラッシュは無し）。 */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: gacha-fade-in 0.3s ease forwards;
+}
+
+.level-up-card {
+  position: relative;
+  background: var(--surface);
+  border-radius: 1rem;
+  padding: 2rem 1.75rem;
+  text-align: center;
+  max-width: 280px;
+  width: calc(100% - 3rem);
+  overflow: hidden;
+  animation: gacha-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.level-up-glow {
+  position: absolute;
+  inset: -40%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 252, 235, 0.95) 0%,
+    rgba(255, 221, 140, 0.6) 40%,
+    rgba(255, 221, 140, 0) 72%
+  );
+  opacity: 0;
+  pointer-events: none;
+  animation: gacha-capsule-glow-burst 0.9s ease-out both;
+}
+
+.level-up-title {
+  position: relative;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.level-up-level {
+  position: relative;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
 .timeline {
   display: flex;
   flex-direction: column;

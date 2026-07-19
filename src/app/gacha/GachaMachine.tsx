@@ -41,6 +41,7 @@ export interface GachaMachineProps {
   /** このガチャ演出1回で消費するメダルを含めた残数（reveal時は2、reroll時は1を渡す）。 */
   medalsRemaining: number;
   streakDays: number;
+  level: number;
   action: () => Promise<RevealResult>;
   /** 開封演出をブロックしないよう別枠で並行取得するミッション文・天気アクション。 */
   fetchMissionTextAction: () => Promise<string>;
@@ -60,6 +61,7 @@ export function GachaMachine({
   mode,
   medalsRemaining,
   streakDays,
+  level,
   action,
   fetchMissionTextAction,
   fetchWeatherAction,
@@ -271,7 +273,10 @@ export function GachaMachine({
             <MedalIcon key={i} size="sm" className={i < displayedMedals ? "" : "gacha-medal-spent"} />
           ))}
         </div>
-        <span className="gacha-status-streak">🔥 {streakDays}日目</span>
+        <div className="row" style={{ gap: "0.5rem" }}>
+          <span className="today-status-level">Lv.{level}</span>
+          <span className="gacha-status-streak">🔥 {streakDays}日目</span>
+        </div>
       </div>
 
       <div ref={stageContainerRef} className={`gacha-stage${showBlackout ? " gacha-stage-sinking" : ""}`}>

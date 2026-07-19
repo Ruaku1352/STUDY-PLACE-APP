@@ -18,6 +18,8 @@ export interface MissionTextWeather {
 export interface GenerateMissionTextInput {
   blocks: MissionTextBlock[];
   streakDays: number;
+  /** 現在のレベル（累積XPから算出）。 */
+  level: number;
   /** 天気予報（未設定・取得失敗時はnull）。雨の日は傘を促す等、演出に織り込む。 */
   weather?: MissionTextWeather | null;
 }
@@ -37,6 +39,7 @@ export async function generateMissionText(input: GenerateMissionTextInput): Prom
 このテキストは開封後（場所・科目が既にユーザーに見えている状態）に表示するので、場所名・科目名はそのまま使ってよいです。
 入力に weather が含まれ isRainy が true の場合は、「雨だから傘を忘れずに」のように天気に触れつつポジティブに演出してください。
 weather が null、または isRainy が false の場合は天気には触れなくてよいです。
+level（現在のレベル）はキリのいい数字（10刻みなど）の場合のみ「Lv.10おめでとう」のように軽く触れてよく、それ以外は無理に言及しなくてよいです。
 堅すぎず、ゲームのミッション演出のような高揚感のある文体にしてください。前置きや見出しは不要で、本文のみを返してください。`,
     messages: [{ role: "user", content: JSON.stringify(input) }],
   });
